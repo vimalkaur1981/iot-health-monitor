@@ -1,3 +1,18 @@
 .env
-.terraform
-.terraform.lock.hcl
+# Terraform directories
+.terraform/
+*.tfstate
+*.tfstate.backup
+
+# Crash logs
+crash.log
+
+# Override files
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# CLI configuration files
+.terraformrc
+terraform.rc
