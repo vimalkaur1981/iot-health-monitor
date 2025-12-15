@@ -1,0 +1,10 @@
+{
+  "device_id": "DEV-001",
+  "vendor": "Devonshire",
+  "timestamp": "2025-12-13T10:10:00Z",
+  "status": "UP",
+  "metrics": {
+    "battery": 87,
+    "signal_strength": -65
+  }
+}
