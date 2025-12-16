@@ -1,17 +1,15 @@
 name: Alert Service – Build & Deploy
 
-
 on:
   push:
     paths:
+      - services/alert-service/**
+      - terraform/**
       - .github/workflows/alert-service.yml
 
 env:
   AWS_REGION: us-east-1
   ECR_REPOSITORY: g5-health-monitor-alert-service
-  ECS_CLUSTER: g5-iot-health-monitor
-  ECS_SERVICE: alert-service  
-  CONTAINER_NAME: alert-service
 
 jobs:
   deploy:
@@ -22,56 +20,44 @@ jobs:
       contents: read
 
     steps:
-    - name: Checkout
-      uses: actions/checkout@v4
+      # 1️⃣ Checkout code
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v4
-      with:
-        role-to-assume: arn:aws:iam::255945442255:role/github-actions-ecr-ecs
-        aws-region: ${{ env.AWS_REGION }}
+      # 2️⃣ Configure AWS credentials (OIDC)
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::255945442255:role/github-actions-ecr-ecs
+          aws-region: ${{ env.AWS_REGION }}
 
-    - name: Login to Amazon ECR
-      id: login-ecr
-      uses: aws-actions/amazon-ecr-login@v2
+      # 3️⃣ Login to Amazon ECR
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
 
-    - name: Build, tag, push image
-      id: build-image
-      working-directory: services/alert-service
-      run: |
-        IMAGE_TAG=${GITHUB_SHA::7}
-        ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}
-         
+      # 4️⃣ Build, tag, and push Docker image
+      - name: Build, tag, push image
+        id: build-image
+        working-directory: services/alert-service
+        run: |
+          IMAGE_TAG=${GITHUB_SHA::7}
+          ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}
 
-        echo "ECR_REGISTRY=$ECR_REGISTRY"
-        echo "Building image with tag: $IMAGE_TAG"
+          echo "Building image: $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
 
-        docker build \
-          -t ${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG} \
-          .
+          docker build \
+            -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
+            .
 
-        docker push ${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+
           echo "image=$IMAGE_TAG" >> $GITHUB_OUTPUT
 
-    - name: Deploy to ECS
-      uses: aws-actions/amazon-ecs-deploy-task-definition@v1
-      with:
-        task-definition: g5_ecs_task_execution/alert-service.json
-        service: ${{ env.ECS_SERVICE }}
-        cluster: ${{ env.ECS_CLUSTER }}
-        image: |
-          ${{ env.CONTAINER_NAME }}=${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ steps.build-image.outputs.image }}
-    
-    - name: Debug task definition path
-      run: |
-        pwd
-        ls -R
-
-    - name: Deploy to ECS
-      uses: aws-actions/amazon-ecs-deploy-task-definition@v1
-      with:
-        task-definition: g5_ecs_task_execution/alert-service.json
-        service: ${{ env.ECS_SERVICE }}
-        cluster: ${{ env.ECS_CLUSTER }}
-        image: |
-          ${{ env.CONTAINER_NAME }}=${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ steps.build-image.outputs.image }}
+      # 5️⃣ Terraform Init & Apply (ECS deployment)
+      - name: Terraform Apply
+        working-directory: terraform   # adjust if your terraform dir name is different
+        run: |
+          terraform init
+          terraform apply -auto-approve \
+            -var="alert_service_image_tag=${{ steps.build-image.outputs.image }}"
