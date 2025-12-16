@@ -6,10 +6,6 @@
 **/terraform/**/*.tfvars
 **/terraform/**/*.tfvars.json
 
-# Specific to your structure
-infra/terraform/Option-1/.terraform/
-infra/terraform/Option-1/*.tfstate
-infra/terraform/Option-1/*.tfstate.*sx
 
 
 
