@@ -8,8 +8,8 @@ on:
 
 env:
   AWS_REGION: us-east-1
-  ECR_REPOSITORY: iot-health-monitor-alert-service
-  ECS_CLUSTER: kafka-app-cluster
+  ECR_REPOSITORY: g5-health-monitor-alert-service
+  ECS_CLUSTER: g5-iot-health-mointor
   ECS_SERVICE: alert-service  
   CONTAINER_NAME: alert-service
 
