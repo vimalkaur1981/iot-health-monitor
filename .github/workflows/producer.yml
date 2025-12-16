@@ -1,15 +1,15 @@
-name: Alert Service – Build & Deploy
+name: Producer Service – Build & Deploy
 
 on:
   push:
     paths:
-      - services/alert-service/**
+      - services/producer-service/**
       - terraform/**
-      - .github/workflows/alert-service.yml
+      - .github/workflows/producer.yml
 
 env:
   AWS_REGION: us-east-1
-  ECR_REPOSITORY: g5-health-monitor-alert-service
+  ECR_REPOSITORY: g5-health-monitor-producer
 
 jobs:
   deploy:
@@ -39,7 +39,7 @@ jobs:
       # 4️⃣ Build, tag, and push Docker image
       - name: Build, tag, push image
         id: build-image
-        working-directory: services/alert-service
+        working-directory: services/producer-service
         run: |
           IMAGE_TAG=${GITHUB_SHA::7}
           ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}
@@ -55,17 +55,4 @@ jobs:
 
           echo "image=$IMAGE_TAG" >> $GITHUB_OUTPUT
 
-      # 5️⃣ Install Terraform
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: 1.6.6
-
-      # 6️⃣ Terraform Init & Apply
-      - name: Terraform Apply
-        working-directory: terraform
-        run: |
-          terraform init
-          terraform apply -auto-approve \
-            -var="alert_service_image_tag=${{ steps.build-image.outputs.image }}"
 

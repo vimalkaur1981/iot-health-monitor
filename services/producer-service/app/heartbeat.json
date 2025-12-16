@@ -8,3 +8,5 @@
     "signal_strength": -65
   }
 }
+
+curl -X POST http://localhost:8000/iot/data  -H "Content-Type: application/json" -d '{"device_id":"ecg-01","metric":"heartbeat","value":76}' 
