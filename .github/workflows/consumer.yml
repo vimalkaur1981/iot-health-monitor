@@ -24,7 +24,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2️⃣ Configure AWS credentials (OIDC)
+      # 2️⃣ Configure AWS credentials
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -48,11 +48,20 @@ jobs:
 
           docker build \
             -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
-            -t ${ECR_REGISTRY}/${ECR_REPOSITORY}:latest \
+            -t $ECR_REGISTRY/$ECR_REPOSITORY:latest \
             .
 
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
 
           echo "image=$IMAGE_TAG" >> $GITHUB_OUTPUT
+          echo "ECR_IMAGE_URI=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_ENV
 
-
+      # 5️⃣ Force ECS service deployment
+      - name: Force ECS Deployment
+        run: |
+          aws ecs update-service \
+            --cluster iot-cluster \
+            --service consumer \
+            --force-new-deployment \
+            --region ${{ env.AWS_REGION }}

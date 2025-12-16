@@ -1,4 +1,11 @@
-variable "alert_service_image_tag" {
-  description = "Docker image tag for alert service"
-  type        = string
+# variables.tf
+variable "GMAIL_USER" { 
+    type = string 
+}
+variable "GMAIL_APP_PASSWORD" { 
+    type = string 
+}
+
+variable "ALERT_RECIPIENT" { 
+    type = string 
 }

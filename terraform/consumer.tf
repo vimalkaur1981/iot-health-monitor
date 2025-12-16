@@ -8,28 +8,50 @@ resource "aws_ecs_task_definition" "consumer" {
 
   container_definitions = jsonencode([
     {
-      name  = "consumer"
-      image = "${aws_ecr_repository.producer.repository_url}:latest"
+      name      = "consumer"
+      image     = "${aws_ecr_repository.consumer.repository_url}:latest"  # Use consumer repo
       essential = true
-      environment = [
-        {
-          name  = "KAFKA_BOOTSTRAP_SERVERS"
-          value = "${aws_instance.kafka.private_ip}:9092"
-        }
+
+      portMappings = [
+        { containerPort = 8002, protocol = "tcp" }  # Prometheus metrics
       ]
+
+      environment = [
+        { name = "KAFKA_BOOTSTRAP_SERVERS", value = "${aws_instance.kafka.private_ip}:9092" },
+        { name = "STATUS_TOPIC", value = "iot-data" },
+        { name = "ALERT_TOPIC", value = "device-alerts" },
+        { name = "DEVICE_TIMEOUT", value = "120" },
+        { name = "CHECK_INTERVAL", value = "5" }
+      ]
+
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          awslogs-group         = "/ecs/iot-consumer"
+          awslogs-region        = "us-east-1"
+          awslogs-stream-prefix = "ecs"
+        }
+      }
     }
   ])
 }
 
+
 resource "aws_ecs_service" "consumer" {
-  name            = "consumer"
+  name            = "iot-consumer"
   cluster         = aws_ecs_cluster.main.id
   task_definition = aws_ecs_task_definition.consumer.arn
   desired_count   = 1
   launch_type     = "FARGATE"
 
   network_configuration {
-    subnets         = [aws_subnet.public.id]
+    subnets          = [aws_subnet.public_1.id, aws_subnet.public_2.id]
+    security_groups  = [aws_security_group.ecs.id]  # Attach ECS SG
     assign_public_ip = true
   }
+}
+
+resource "aws_cloudwatch_log_group" "consumer" {
+  name              = "/ecs/iot-consumer"
+  retention_in_days = 7
 }

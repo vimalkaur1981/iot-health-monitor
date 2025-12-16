@@ -45,24 +45,45 @@ resource "aws_security_group" "alb" {
   name   = "producer-alb-sg"
   vpc_id = aws_vpc.main.id
 
-  ingress { from_port=80, to_port=80, protocol="tcp", cidr_blocks=["0.0.0.0/0"] }
-  egress  { from_port=0, to_port=0, protocol="-1", cidr_blocks=["0.0.0.0/0"] }
+  ingress { 
+    from_port = 80
+    to_port = 80
+    protocol = "tcp"
+    cidr_blocks = ["0.0.0.0/0"] 
+  }
+  egress  { 
+    from_port = 0 
+    to_port = 0
+    protocol = "-1"
+    cidr_blocks = ["0.0.0.0/0"] 
+  }
 }
 
 resource "aws_security_group" "ecs" {
   name   = "producer-ecs-sg"
   vpc_id = aws_vpc.main.id
 
-  ingress { from_port=8000, to_port=8000, protocol="tcp", security_groups=[aws_security_group.alb.id] }
-  egress  { from_port=9092, to_port=9092, protocol="tcp", cidr_blocks=["0.0.0.0/0"] }
+  ingress {
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+  egress  { 
+    from_port = 9092 
+    to_port = 9092 
+    protocol = "tcp"
+    cidr_blocks = ["0.0.0.0/0"] 
+  }
 }
 
 # Application Load Balancer
 resource "aws_lb" "producer" {
   name               = "producer-alb"
+  internal           = false
   load_balancer_type = "application"
-  subnets            = [aws_subnet.public.id]
   security_groups    = [aws_security_group.alb.id]
+  subnets            = [aws_subnet.public_1.id, aws_subnet.public_2.id]
 }
 
 resource "aws_lb_target_group" "producer" {
@@ -95,7 +116,7 @@ resource "aws_ecs_service" "producer" {
   launch_type     = "FARGATE"
 
   network_configuration {
-    subnets         = [aws_subnet.public.id]
+    subnets            = [aws_subnet.public_1.id, aws_subnet.public_2.id]
     security_groups = [aws_security_group.ecs.id]
     assign_public_ip = true
   }

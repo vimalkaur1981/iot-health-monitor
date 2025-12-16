@@ -14,13 +14,12 @@ env:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-
     permissions:
       id-token: write
       contents: read
 
     steps:
-      # 1️⃣ Checkout code
+      # 1️⃣ Checkout repository
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -44,16 +43,16 @@ jobs:
           IMAGE_TAG=${GITHUB_SHA::7}
           ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}
 
-          echo "Building image: $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
-
-          docker build \
-            -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
-            -t ${ECR_REGISTRY}/${ECR_REPOSITORY}:latest \
-            .
-
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
+                       -t $ECR_REGISTRY/$ECR_REPOSITORY:latest .
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
 
-          echo "image=$IMAGE_TAG" >> $GITHUB_OUTPUT
-
-
-
+      # 5️⃣ Force ECS deployment (latest image)
+      - name: Force ECS Deployment
+        run: |
+          aws ecs update-service \
+            --cluster iot-cluster \
+            --service alert \
+            --force-new-deployment \
+            --region ${{ env.AWS_REGION }}

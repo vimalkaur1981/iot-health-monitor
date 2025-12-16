@@ -1,6 +1,6 @@
 import json
-import time
 import os
+import time
 import threading
 from kafka import KafkaConsumer, KafkaProducer, errors
 from app.metrics import iot_messages_consumed, start_metrics_server
@@ -9,27 +9,26 @@ from app.metrics import iot_messages_consumed, start_metrics_server
 # Configuration
 # ======================
 BOOTSTRAP_SERVERS = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "kafka:9092")
-
-STATUS_TOPIC = "iot-data"
-ALERT_TOPIC = "device-alerts"
-
-DEVICE_TIMEOUT = 120        # seconds
-CHECK_INTERVAL = 5          # seconds
+STATUS_TOPIC = os.environ.get("STATUS_TOPIC", "iot-data")
+ALERT_TOPIC = os.environ.get("ALERT_TOPIC", "device-alerts")
+DEVICE_TIMEOUT = int(os.environ.get("DEVICE_TIMEOUT", 120))  # seconds
+CHECK_INTERVAL = int(os.environ.get("CHECK_INTERVAL", 5))    # seconds
 
 # ======================
-# In-memory State
+# In-memory state
 # ======================
-last_seen = {}              # device_id -> last timestamp
-device_state = {}           # device_id -> UP | DOWN
+last_seen = {}      # device_id -> timestamp
+device_state = {}   # device_id -> UP / DOWN
 state_lock = threading.Lock()
 
 # ======================
 # Metrics Server
 # ======================
-threading.Thread(target=start_metrics_server, daemon=True).start()
+def start_metrics():
+    threading.Thread(target=start_metrics_server, daemon=True).start()
 
 # ======================
-# Kafka Consumer (Retry)
+# Kafka Consumer & Producer
 # ======================
 def create_consumer():
     while True:
@@ -42,10 +41,10 @@ def create_consumer():
                 auto_offset_reset="earliest",
                 enable_auto_commit=True
             )
-            print("✅ Status consumer connected to Kafka")
+            print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] ✅ Status consumer connected")
             return consumer
         except errors.NoBrokersAvailable:
-            print("⏳ Kafka not available, retrying in 3s...")
+            print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] ⏳ Kafka not ready, retrying in 3s...")
             time.sleep(3)
 
 def create_producer():
@@ -59,29 +58,27 @@ def create_producer():
                 request_timeout_ms=10000,
                 api_version_auto_timeout_ms=10000
             )
-            print("✅ Kafka producer connected")
+            print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] ✅ Kafka producer connected")
             return producer
         except errors.NoBrokersAvailable:
-            print("⏳ Kafka not available for producer, retrying in 3s...")
+            print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] ⏳ Kafka not ready for producer, retrying in 3s...")
             time.sleep(3)
-# ======================
-# Kafka Producer
-# ======================
-producer =create_producer()
+
+producer = create_producer()
 
 # ======================
-# Alert Helpers
+# Alert helpers
 # ======================
-def send_alert(event):
+def send_alert(event: dict):
     producer.send(ALERT_TOPIC, value=event)
     producer.flush()
-    print(f"🚨 Alert sent → {event['alert_type']} for {event['device_id']}")
+    print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] 🚨 Alert sent → {event['alert_type']} for {event['device_id']}")
 
 def utc_now():
     return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
 
 # ======================
-# Device Timeout Checker
+# Device timeout checker
 # ======================
 def monitor_device_timeouts():
     while True:
@@ -91,7 +88,6 @@ def monitor_device_timeouts():
                 if now - ts > DEVICE_TIMEOUT:
                     if device_state.get(device_id) != "DOWN":
                         device_state[device_id] = "DOWN"
-
                         send_alert({
                             "device_id": device_id,
                             "alert_type": "DEVICE_DOWN",
@@ -99,21 +95,20 @@ def monitor_device_timeouts():
                             "timestamp": utc_now(),
                             "message": f"Device {device_id} is DOWN"
                         })
-
         time.sleep(CHECK_INTERVAL)
 
 # ======================
-# Consumer Loop
+# Consumer loop
 # ======================
 def consume_status_events():
     consumer = create_consumer()
-    print("🚀 Status consumer running")
+    print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] 🚀 Status consumer running")
 
     for msg in consumer:
         data = msg.value
         iot_messages_consumed.inc()
 
-        device_id = data["device_id"]
+        device_id = data.get("device_id")
         now = time.time()
 
         with state_lock:
@@ -122,23 +117,21 @@ def consume_status_events():
             # Recovery detection
             if device_state.get(device_id) == "DOWN":
                 device_state[device_id] = "UP"
-
                 send_alert({
                     "device_id": device_id,
                     "alert_type": "DEVICE_RECOVERED",
                     "severity": "INFO",
+                    "timestamp": utc_now(),
                     "message": f"Device {device_id} recovered"
                 })
 
-        print(f"📩 Status received from {device_id}")
+        print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] 📩 Status received from {device_id}")
 
 # ======================
 # Startup
 # ======================
 if __name__ == "__main__":
-    threading.Thread(
-        target=monitor_device_timeouts,
-        daemon=True
-    ).start()
+    start_metrics()
 
+    threading.Thread(target=monitor_device_timeouts, daemon=True).start()
     consume_status_events()
