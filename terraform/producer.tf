@@ -1,5 +1,6 @@
+# ECS Task Definition
 resource "aws_ecs_task_definition" "producer" {
-  family                   = "iot-health-monitor-producer"
+  family                   = "iot-producer"
   requires_compatibilities = ["FARGATE"]
   network_mode             = "awsvpc"
   cpu                      = 256
@@ -8,19 +9,84 @@ resource "aws_ecs_task_definition" "producer" {
 
   container_definitions = jsonencode([
     {
-      name  = "producer"
-      image = "${aws_ecr_repository.producer.repository_url}:latest"
+      name      = "producer"
+      image     = "${aws_ecr_repository.producer.repository_url}:latest"
       essential = true
-      environment = [
-        {
-          name  = "KAFKA_BOOTSTRAP_SERVERS"
-          value = "${aws_instance.kafka.private_ip}:9092"
-        }
+
+      portMappings = [
+        { containerPort = 8000, protocol = "tcp" }
       ]
+
+      environment = [
+        { name = "KAFKA_BOOTSTRAP_SERVERS", value = "${aws_instance.kafka.private_ip}:9092" },
+        { name = "KAFKA_TOPIC", value = "iot-data" }
+      ]
+
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          awslogs-group         = "/ecs/iot-producer"
+          awslogs-region        = "us-east-1"
+          awslogs-stream-prefix = "ecs"
+        }
+      }
     }
   ])
 }
 
+# CloudWatch Log Group
+resource "aws_cloudwatch_log_group" "producer" {
+  name              = "/ecs/iot-producer"
+  retention_in_days = 7
+}
+
+# Security Groups
+resource "aws_security_group" "alb" {
+  name   = "producer-alb-sg"
+  vpc_id = aws_vpc.main.id
+
+  ingress { from_port=80, to_port=80, protocol="tcp", cidr_blocks=["0.0.0.0/0"] }
+  egress  { from_port=0, to_port=0, protocol="-1", cidr_blocks=["0.0.0.0/0"] }
+}
+
+resource "aws_security_group" "ecs" {
+  name   = "producer-ecs-sg"
+  vpc_id = aws_vpc.main.id
+
+  ingress { from_port=8000, to_port=8000, protocol="tcp", security_groups=[aws_security_group.alb.id] }
+  egress  { from_port=9092, to_port=9092, protocol="tcp", cidr_blocks=["0.0.0.0/0"] }
+}
+
+# Application Load Balancer
+resource "aws_lb" "producer" {
+  name               = "producer-alb"
+  load_balancer_type = "application"
+  subnets            = [aws_subnet.public.id]
+  security_groups    = [aws_security_group.alb.id]
+}
+
+resource "aws_lb_target_group" "producer" {
+  name        = "producer-tg"
+  port        = 8000
+  protocol    = "HTTP"
+  vpc_id      = aws_vpc.main.id
+  target_type = "ip"
+
+  health_check { path = "/health" }
+}
+
+resource "aws_lb_listener" "http" {
+  load_balancer_arn = aws_lb.producer.arn
+  port              = 80
+  protocol          = "HTTP"
+
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.producer.arn
+  }
+}
+
+# ECS Service
 resource "aws_ecs_service" "producer" {
   name            = "producer"
   cluster         = aws_ecs_cluster.main.id
@@ -30,6 +96,15 @@ resource "aws_ecs_service" "producer" {
 
   network_configuration {
     subnets         = [aws_subnet.public.id]
+    security_groups = [aws_security_group.ecs.id]
     assign_public_ip = true
   }
+
+  load_balancer {
+    target_group_arn = aws_lb_target_group.producer.arn
+    container_name   = "producer"
+    container_port   = 8000
+  }
+
+  depends_on = [aws_lb_listener.http]
 }
