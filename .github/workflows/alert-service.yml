@@ -54,10 +54,17 @@ jobs:
 
           echo "image=$IMAGE_TAG" >> $GITHUB_OUTPUT
 
-      # 5️⃣ Terraform Init & Apply (ECS deployment)
+      # 5️⃣ Install Terraform
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.6.6
+
+      # 6️⃣ Terraform Init & Apply
       - name: Terraform Apply
-        working-directory: terraform   # adjust if your terraform dir name is different
+        working-directory: terraform
         run: |
           terraform init
           terraform apply -auto-approve \
             -var="alert_service_image_tag=${{ steps.build-image.outputs.image }}"
+
