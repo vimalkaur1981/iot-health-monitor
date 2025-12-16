@@ -9,7 +9,7 @@ on:
 env:
   AWS_REGION: us-east-1
   ECR_REPOSITORY: g5-health-monitor-alert-service
-  ECS_CLUSTER: g5-iot-health-mointor
+  ECS_CLUSTER: g5-iot-health-monitor
   ECS_SERVICE: alert-service  
   CONTAINER_NAME: alert-service
 

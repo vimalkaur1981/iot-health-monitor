@@ -1,11 +1,11 @@
 resource "aws_ecr_repository" "producer" {
-  name = "producer"
+  name = "g5-health-monitor-producer"
 }
 
 resource "aws_ecr_repository" "consumer" {
-  name = "consumer"
+  name = "g5-health-monitor-consumer"
 }
 
 resource "aws_ecr_repository" "alert-service" {
-  name = "alerting"
+  name = "g5-health-monitor-alert-service"
 }

@@ -1,5 +1,5 @@
 resource "aws_ecs_task_definition" "alert-service" {
-  family                   = "g5-health-monitor-alert-service"
+  family                   = "iot-health-monitor-alert-service"
   requires_compatibilities = ["FARGATE"]
   network_mode             = "awsvpc"
   cpu                      = 256
