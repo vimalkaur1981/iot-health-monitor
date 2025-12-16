@@ -3,7 +3,6 @@ name: Alert Service – Build & Deploy
 on:
   push:
     paths:
-      - alert-service/**
       - .github/workflows/alert-service.yml
 
 env:
@@ -36,9 +35,10 @@ jobs:
 
     - name: Build, tag, push image
       id: build-image
+      working-directory: services/alert-service
       run: |
         IMAGE_TAG=${GITHUB_SHA::7}
-        docker build -t $ECR_REPOSITORY ./alert-service
+        docker build -t alert-service:${IMAGE_TAG} .
         docker tag $ECR_REPOSITORY:latest \
         ${{ steps.login-ecr.outputs.registry }}/$ECR_REPOSITORY:$IMAGE_TAG
         docker push \
