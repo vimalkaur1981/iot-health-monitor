@@ -9,7 +9,7 @@ resource "aws_ecs_task_definition" "alert_service" {
   container_definitions = jsonencode([
     {
       name      = "alert-service"
-      image     = "${aws_ecr_repository.alert.repository_url}:${var.alert_service_image_tag}"
+      image     = "${aws_ecr_repository.alert_service.repository_url}:${var.alert_service_image_tag}"
       essential = true
 
       environment = [
