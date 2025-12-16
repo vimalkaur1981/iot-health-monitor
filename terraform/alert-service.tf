@@ -17,16 +17,7 @@ resource "aws_ecs_task_definition" "alert_service" {
           name  = "KAFKA_BOOTSTRAP_SERVERS"
           value = "${aws_instance.kafka.private_ip}:9092"
         }
-      ]
-
-      logConfiguration = {
-        logDriver = "awslogs"
-        options = {
-          awslogs-group         = "/ecs/alert-service"
-          awslogs-region        = "us-east-1"
-          awslogs-stream-prefix = "ecs"
-        }
-      }
+      ]      
     }
   ])
 }

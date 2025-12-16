@@ -17,14 +17,6 @@ resource "aws_ecs_task_definition" "producer" {
           value = "${aws_instance.kafka.private_ip}:9092"
         }
       ]
-      logConfiguration = {
-        logDriver = "awslogs"
-        options = {
-          awslogs-group         = "/ecs/producer"
-          awslogs-region        = "us-east-1"
-          awslogs-stream-prefix = "ecs"
-        }
-      }
     }
   ])
 }
