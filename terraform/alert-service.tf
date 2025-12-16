@@ -1,10 +1,10 @@
 resource "aws_ecs_task_definition" "alert-service" {
-  family                   = "iot-health-monitor-alert-service"
+  family                   = "g5-health-monitor-alert-service"
   requires_compatibilities = ["FARGATE"]
   network_mode             = "awsvpc"
   cpu                      = 256
   memory                   = 512
-  execution_role_arn       = aws_iam_role.iot_ecs_task_execution.arn
+  execution_role_arn       = aws_iam_role.g5_ecs_task_execution.arn
 
   container_definitions = jsonencode([
     {

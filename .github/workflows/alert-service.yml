@@ -48,7 +48,7 @@ jobs:
     - name: Deploy to ECS
       uses: aws-actions/amazon-ecs-deploy-task-definition@v1
       with:
-        task-definition: iot_ecs_task_execution/alert-service.json
+        task-definition: g5_ecs_task_execution/alert-service.json
         service: ${{ env.ECS_SERVICE }}
         cluster: ${{ env.ECS_CLUSTER }}
         image: |

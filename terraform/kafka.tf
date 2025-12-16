@@ -1,4 +1,4 @@
-resource "aws_security_group" "kafka_sg" {
+resource "aws_security_group" "g5-kafka" {
   vpc_id = aws_vpc.main.id
 
   ingress {
@@ -27,7 +27,7 @@ resource "aws_instance" "kafka" {
   ami                    = "ami-068c0051b15cdb816"
   instance_type          = "t3.micro"
   subnet_id              = aws_subnet.public.id
-  vpc_security_group_ids = [aws_security_group.kafka_sg.id]
+  vpc_security_group_ids = [aws_security_group.g5-kafka.id]
   key_name               = "group5-key-pair"
 
   user_data = file("${path.module}/kafka-install.sh")
