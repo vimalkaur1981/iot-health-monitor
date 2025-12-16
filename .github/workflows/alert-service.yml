@@ -60,3 +60,8 @@ jobs:
         cluster: ${{ env.ECS_CLUSTER }}
         image: |
           ${{ env.CONTAINER_NAME }}=${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ steps.build-image.outputs.image }}
+    
+    - name: Debug task definition path
+      run: |
+        pwd
+        ls -R
