@@ -48,11 +48,4 @@ jobs:
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
 
-      # 5️⃣ Force ECS deployment (latest image)
-      - name: Force ECS Deployment
-        run: |
-          aws ecs update-service \
-            --cluster iot-cluster \
-            --service alert \
-            --force-new-deployment \
-            --region ${{ env.AWS_REGION }}
+

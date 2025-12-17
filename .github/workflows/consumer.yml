@@ -57,11 +57,4 @@ jobs:
           echo "image=$IMAGE_TAG" >> $GITHUB_OUTPUT
           echo "ECR_IMAGE_URI=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_ENV
 
-      # 5️⃣ Force ECS service deployment
-      - name: Force ECS Deployment
-        run: |
-          aws ecs update-service \
-            --cluster iot-cluster \
-            --service consumer \
-            --force-new-deployment \
-            --region ${{ env.AWS_REGION }}
+
