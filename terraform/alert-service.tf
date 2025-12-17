@@ -74,8 +74,8 @@ resource "aws_ecs_task_definition" "alert" {
 }
 
 # CloudWatch Log Group
-resource "aws_cloudwatch_log_group" "producer" {
-  name              = "/ecs/iot-producer"
+resource "aws_cloudwatch_log_group" "alert_service" {
+  name              = "/ecs/iot-alert-service"
   retention_in_days = 7
 }
 
