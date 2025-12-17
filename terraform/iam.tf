@@ -19,6 +19,19 @@ resource "aws_iam_role_policy_attachment" "ecs_execution_policy" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
 }
 
+resource "aws_iam_role_policy" "g5_ecs_task_execution_secrets" {
+  name = "g5-ecs-task-execution-secrets"
+  role = aws_iam_role.g5_ecs_task_execution.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = ["secretsmanager:GetSecretValue"]
+      Resource = "arn:aws:secretsmanager:us-east-1:255945442255:secret:gmail_user-jOtuwO"
+    }]
+  })
+}
 ############################################
 # ECS TASK ROLE (APPLICATION ROLE)
 ############################################

@@ -45,7 +45,7 @@ resource "aws_ecs_service" "consumer" {
   launch_type     = "FARGATE"
 
   network_configuration {
-    subnets          = [aws_subnet.public_1.id, aws_subnet.public_2.id]
+    subnets          = [for s in aws_subnet.public : s.id]
     security_groups  = [aws_security_group.ecs.id]  # Attach ECS SG
     assign_public_ip = true
   }

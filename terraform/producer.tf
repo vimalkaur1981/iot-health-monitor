@@ -64,10 +64,10 @@ resource "aws_security_group" "ecs" {
   vpc_id = aws_vpc.main.id
 
   ingress {
-    from_port   = 80
-    to_port     = 80
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    from_port       = 8000
+    to_port         = 8000
+    protocol        = "tcp"
+    security_groups = [aws_security_group.alb.id]  # ALB can reach ECS
   }
   egress  { 
     from_port = 9092 
@@ -83,7 +83,8 @@ resource "aws_lb" "producer" {
   internal           = false
   load_balancer_type = "application"
   security_groups    = [aws_security_group.alb.id]
-  subnets            = [aws_subnet.public_1.id, aws_subnet.public_2.id]
+
+  subnets = [for s in aws_subnet.public : s.id]
 }
 
 resource "aws_lb_target_group" "producer" {
@@ -116,7 +117,7 @@ resource "aws_ecs_service" "producer" {
   launch_type     = "FARGATE"
 
   network_configuration {
-    subnets            = [aws_subnet.public_1.id, aws_subnet.public_2.id]
+    subnets          = [for s in aws_subnet.public : s.id]
     security_groups = [aws_security_group.ecs.id]
     assign_public_ip = true
   }

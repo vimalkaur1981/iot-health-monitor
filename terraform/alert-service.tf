@@ -8,10 +8,16 @@ resource "aws_secretsmanager_secret" "gmail_user" {
 resource "aws_secretsmanager_secret_version" "gmail_user_version" {
   secret_id     = aws_secretsmanager_secret.gmail_user.id
   secret_string = var.GMAIL_USER
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "aws_secretsmanager_secret" "gmail_password" {
   name = "gmail_password"
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "aws_secretsmanager_secret_version" "gmail_password_version" {
@@ -77,8 +83,8 @@ resource "aws_ecs_service" "alert" {
   desired_count   = 1
   launch_type     = "FARGATE"
 
-  network_configuration {
-    subnets          = [aws_subnet.public_1.id, aws_subnet.public_2.id]
+ network_configuration {
+    subnets          = [for s in aws_subnet.public : s.id]
     assign_public_ip = true
-  }
+  } 
 }

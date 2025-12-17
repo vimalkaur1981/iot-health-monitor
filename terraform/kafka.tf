@@ -26,7 +26,7 @@ resource "aws_security_group" "g5-kafka" {
 resource "aws_instance" "kafka" {
   ami                    = "ami-068c0051b15cdb816"
   instance_type          = "t3.micro"
-  subnet_id              = aws_subnet.public_1.id
+  subnet_id = values(aws_subnet.public)[0].id
   vpc_security_group_ids = [aws_security_group.g5-kafka.id]
   key_name               = "group5-key-pair"
 
