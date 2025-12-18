@@ -49,7 +49,7 @@ Message:
 {alert['message']}
 """
     )
-    print("Received message:", msg.value)
+    print("Received message:", msg.values)
     try:
         with smtplib.SMTP("smtp.gmail.com", 587) as server:
             server.starttls()
