@@ -43,6 +43,6 @@ def send_iot_data(data: dict):
     producer = get_producer()
     try:
         producer.send(KAFKA_TOPIC, value=data)
-        producer.flush()
+        #producer.flush()
     except KafkaTimeoutError as e:
         print(f"Failed to send message to Kafka: {e}")
