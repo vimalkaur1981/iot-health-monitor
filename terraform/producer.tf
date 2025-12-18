@@ -75,6 +75,13 @@ resource "aws_security_group" "ecs" {
     protocol = "tcp"
     cidr_blocks = ["0.0.0.0/0"] 
   }
+  # HTTPS (ECR, Logs, AWS APIs)
+egress {
+  from_port   = 443
+  to_port     = 443
+  protocol    = "tcp"
+  cidr_blocks = ["0.0.0.0/0"]
+}
 }
 
 # Application Load Balancer

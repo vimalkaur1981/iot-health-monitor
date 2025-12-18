@@ -3,14 +3,14 @@
 # ---------------------
 resource "aws_secretsmanager_secret" "gmail_user" {
   name = "gmail_user"
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "aws_secretsmanager_secret_version" "gmail_user_version" {
   secret_id     = aws_secretsmanager_secret.gmail_user.id
   secret_string = var.GMAIL_USER
-  lifecycle {
-    prevent_destroy = true
-  }
 }
 
 resource "aws_secretsmanager_secret" "gmail_password" {
@@ -74,8 +74,8 @@ resource "aws_ecs_task_definition" "alert" {
 }
 
 # CloudWatch Log Group
-resource "aws_cloudwatch_log_group" "alert_service" {
-  name              = "/ecs/iot-alert-service"
+resource "aws_cloudwatch_log_group" "iot-alert" {
+  name              = "/ecs/iot-alert"
   retention_in_days = 7
 }
 

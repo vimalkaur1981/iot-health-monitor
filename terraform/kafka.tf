@@ -1,3 +1,13 @@
+resource "tls_private_key" "ec2_key" {
+  algorithm = "RSA"
+  rsa_bits  = 4096
+}
+
+resource "aws_key_pair" "ec2_keypair" {
+  key_name   = "iot-kafka-key"
+  public_key = tls_private_key.ec2_key.public_key_openssh
+}
+
 resource "aws_security_group" "g5-kafka" {
   vpc_id = aws_vpc.main.id
 
@@ -28,7 +38,7 @@ resource "aws_instance" "kafka" {
   instance_type          = "t3.micro"
   subnet_id = values(aws_subnet.public)[0].id
   vpc_security_group_ids = [aws_security_group.g5-kafka.id]
-  key_name               = "group5-key-pair"
+  key_name               = aws_key_pair.ec2_keypair.key_name
 
   user_data = file("${path.module}/kafka-install.sh")
 
