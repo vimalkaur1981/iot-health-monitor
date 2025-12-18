@@ -26,5 +26,6 @@ override.tf.json
 # CLI configuration files
 .terraformrc
 terraform.rc
+session-manager-plugin.*
 
 terraform.tfvars

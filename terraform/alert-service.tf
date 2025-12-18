@@ -35,6 +35,7 @@ resource "aws_ecs_task_definition" "alert" {
   cpu                      = 256
   memory                   = 512
   execution_role_arn       = aws_iam_role.g5_ecs_task_execution.arn
+  task_role_arn = aws_iam_role.g5_ecs_task_role.arn
 
   container_definitions = jsonencode([
     {
@@ -56,8 +57,8 @@ resource "aws_ecs_task_definition" "alert" {
 
       # Sensitive variables stored in Secrets Manager
       secrets = [
-        { name = "GMAIL_USER", valueFrom = aws_secretsmanager_secret.gmail_user.arn },
-        { name = "GMAIL_APP_PASSWORD", valueFrom = aws_secretsmanager_secret.gmail_password.arn }
+        { name = "GMAIL_USER", valueFrom = aws_secretsmanager_secret_version.gmail_user_version.arn },
+        { name = "GMAIL_APP_PASSWORD", valueFrom = aws_secretsmanager_secret_version.gmail_password_version.arn }
       ]
 
       # CloudWatch Logs configuration

@@ -29,8 +29,8 @@ resource "aws_iam_role_policy" "g5_ecs_task_execution_secrets" {
       Effect   = "Allow"
       Action   = ["secretsmanager:GetSecretValue"]
       "Resource": [
-				"arn:aws:secretsmanager:us-east-1:255945442255:secret:gmail_user-j0tuw0",
-				"arn:aws:secretsmanager:us-east-1:255945442255:secret:gmail_password-UyGnYF"
+				"arn:aws:secretsmanager:us-east-1:255945442255:secret:gmail_user-*",
+				"arn:aws:secretsmanager:us-east-1:255945442255:secret:gmail_password-*"
 			]
     }]
   })

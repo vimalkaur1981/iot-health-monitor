@@ -49,11 +49,15 @@ Message:
 {alert['message']}
 """
     )
-
-    with smtplib.SMTP("smtp.gmail.com", 587) as server:
-        server.starttls()
-        server.login(GMAIL_USER, GMAIL_PASSWORD)
-        server.send_message(msg)
+    print("Received message:", msg.value)
+    try:
+        with smtplib.SMTP("smtp.gmail.com", 587) as server:
+            server.starttls()
+            server.login(GMAIL_USER, GMAIL_PASSWORD)
+            server.send_message(msg)
+        print("✅ Email sent")
+    except Exception as e:
+        print("❌ Failed to send email:", e)
 
 print("📨 Alert Service running")
 
