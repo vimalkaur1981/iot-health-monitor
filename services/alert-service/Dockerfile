@@ -7,4 +7,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY app ./app
 
-CMD ["python", "-u", "email_client.py"]
+CMD ["python", "-u", "app/email_client.py"]
