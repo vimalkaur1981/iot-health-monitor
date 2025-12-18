@@ -3,6 +3,10 @@ resource "aws_vpc" "main" {
   cidr_block           = "10.0.0.0/16"
   enable_dns_support   = true
   enable_dns_hostnames = true
+
+  tags = {
+    Name = "g5-vpc"
+  }
 }
 
 locals {
@@ -14,7 +18,6 @@ locals {
 
 resource "aws_subnet" "public" {
   for_each = local.public_subnets
-
   vpc_id            = aws_vpc.main.id
   availability_zone = each.value
 

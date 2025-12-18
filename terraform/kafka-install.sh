@@ -33,6 +33,16 @@ PROPS
 
 mkdir -p /var/log/kafka
 
+# ADD JVM MEMORY LIMITS (PERMANENT FIX)
+cat << JVMEOF > /etc/profile.d/kafka-env.sh
+export KAFKA_HEAP_OPTS="-Xms256m -Xmx256m"
+export KAFKA_OPTS="-XX:+UseG1GC -XX:MaxGCPauseMillis=20"
+export ZOOKEEPER_HEAP_OPTS="-Xms128m -Xmx128m"
+JVMEOF
+
+chmod +x /etc/profile.d/kafka-env.sh
+source /etc/profile.d/kafka-env.sh
+# END CHANGE
 echo "Starting Zookeeper..."
 nohup $KAFKA_HOME/bin/zookeeper-server-start.sh \
   $KAFKA_HOME/config/zookeeper.properties > /var/log/zookeeper.log 2>&1 &
