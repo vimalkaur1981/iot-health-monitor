@@ -35,11 +35,12 @@ while True:
 # Email sender
 # --------------------
 def send_email(alert):
-    msg = EmailMessage()
-    msg["From"] = GMAIL_USER
-    msg["To"] = ALERT_RECIPIENT
-    msg["Subject"] = f"🚨 {alert['alert_type']} - {alert['device_id']}"
-    msg.set_content(
+    email_msg = EmailMessage()
+    email_msg["From"] = GMAIL_USER
+    email_msg["To"] = ALERT_RECIPIENT
+    email_msg["Subject"] = f"🚨 {alert['alert_type']} - {alert['device_id']}"
+
+    email_msg.set_content(
         f"""
 Device ID: {alert['device_id']}
 Severity: {alert['severity']}
@@ -49,18 +50,20 @@ Message:
 {alert['message']}
 """
     )
-    print("Received message:", msg.values)
+
+    print("Received email:\n", email_msg.as_string())
+
     try:
         with smtplib.SMTP("smtp.gmail.com", 587) as server:
             server.starttls()
             server.login(GMAIL_USER, GMAIL_PASSWORD)
-            server.send_message(msg)
+            server.send_message(email_msg)
         print("✅ Email sent")
     except Exception as e:
         print("❌ Failed to send email:", e)
 
 print("📨 Alert Service running")
 
-for msg in consumer:
-    send_email(msg.value)
-    print(f"📧 Email sent for device {msg.value['device_id']}")
+for record in consumer:
+    send_email(record.value)
+    print(f"📧 Email sent for device {record.value['device_id']}")
