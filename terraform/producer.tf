@@ -41,6 +41,7 @@ resource "aws_cloudwatch_log_group" "producer" {
 }
 
 # Security Groups
+
 resource "aws_security_group" "alb" {
   name   = "producer-alb-sg"
   vpc_id = aws_vpc.main.id
@@ -53,17 +54,18 @@ resource "aws_security_group" "alb" {
   }
 
   ingress { 
-    from_port = 800
-    to_port = 8000
+    from_port = 443
+    to_port = 443
     protocol = "tcp"
     cidr_blocks = ["0.0.0.0/0"] 
   }
 
+  
   egress  { 
-    from_port = 0 
-    to_port = 0
-    protocol = "-1"
-    cidr_blocks = ["0.0.0.0/0"] 
+    from_port = 8000 
+    to_port = 8000
+    protocol = "0"
+    cidr_blocks =  ["0.0.0.0/0"] 
   }
 }
 
@@ -72,10 +74,10 @@ resource "aws_security_group" "ecs" {
   vpc_id = aws_vpc.main.id
 
   ingress {
-    from_port   = 80
-    to_port     = 80
+    from_port   = 8000
+    to_port     = 8000
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = ["0.0.0.0/0"] 
   }
   egress  { 
     from_port = 9092 
@@ -109,7 +111,13 @@ resource "aws_lb_target_group" "producer" {
   vpc_id      = aws_vpc.main.id
   target_type = "ip"
 
-  health_check { path = "/health" }
+   health_check {
+    path                = "/health"
+    matcher             = "200"
+    interval            = 30
+    timeout             = 5
+    unhealthy_threshold = 2
+  }
 }
 
 resource "aws_lb_listener" "http" {
@@ -145,3 +153,23 @@ resource "aws_ecs_service" "producer" {
 
   depends_on = [aws_lb_listener.http]
 }
+
+
+data "aws_route53_zone" "main" {
+  name         = "sctp-sandbox.com"
+  private_zone = false
+}
+
+resource "aws_route53_record" "api" {
+  zone_id = data.aws_route53_zone.main.zone_id
+  name    = "api.sctp-sandbox.com"
+  type    = "A"
+
+  alias {
+    name                   = aws_lb.producer.dns_name
+    zone_id                = aws_lb.producer.zone_id
+    evaluate_target_health = true
+  }
+}
+
+
