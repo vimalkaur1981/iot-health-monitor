@@ -33,6 +33,7 @@ jobs:
         uses: aws-actions/amazon-ecr-login@v2
 
       - name: Build Docker image for UAT
+        working-directory: services/alert-service
         run: |
           IMAGE_TAG=uat-${{ github.sha }}
           ECR_REGISTRY=${{ steps.login-uat-ecr.outputs.registry }}
