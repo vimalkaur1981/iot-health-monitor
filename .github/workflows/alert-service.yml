@@ -3,8 +3,8 @@ name: Alert Service – Build & Deploy
 on:
   workflow_dispatch:
   push:
-    branches-ignore:
-      - main        # Trigger on all branches except main
+    branches:
+      - feature        # Trigger on all branches except main
     paths:
       - services/alert-service/**
   pull_request:
