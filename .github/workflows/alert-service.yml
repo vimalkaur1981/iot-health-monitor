@@ -38,7 +38,8 @@ jobs:
           ECR_REGISTRY=${{ steps.login-uat-ecr.outputs.registry }}
           docker build \
           -t $ECR_REGISTRY/$UAT_ECR_REPO:$IMAGE_TAG \
-          -t $ECR_REGISTRY/$UAT_ECR_REPO:latest 
+          -t $ECR_REGISTRY/$UAT_ECR_REPO:latest \
+          .
       
       - name: Push Docker image to UAT
         run: |
