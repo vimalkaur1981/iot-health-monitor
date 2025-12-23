@@ -5,13 +5,9 @@ on:
   push:
     branches:
       - feature        # Trigger on all branches except main
-    paths:
-      - services/alert-service/**
   pull_request:
     branches:
       - main        # Trigger on PRs targeting main
-    paths:
-      - services/alert-service/**
 
 env:
   AWS_REGION: us-east-1
