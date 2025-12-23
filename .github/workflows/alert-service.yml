@@ -36,7 +36,7 @@ jobs:
           IMAGE_TAG=uat-${{ github.sha }}
           docker build \
           -t $UAT_ECR_REPO:$IMAGE_TAG \
-          -t $UAT_ECR_REPO:latest \ .
+          -t $UAT_ECR_REPO:latest .
       
       - name: Push Docker image to UAT
         run: |
