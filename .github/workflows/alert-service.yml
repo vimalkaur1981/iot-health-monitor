@@ -4,10 +4,18 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - feature        # Trigger on all branches except main
+      - feature 
+    paths:
+      - services/alert-service/**
+      - terraform/**
+      - .github/workflows/alert-service.yml         
   pull_request:
     branches:
       - main        # Trigger on PRs targeting main
+    paths:
+      - services/alert-service/**
+      - terraform/**
+      - .github/workflows/alert-service.yml
 
 env:
   AWS_REGION: us-east-1
