@@ -1,51 +1,83 @@
 name: Alert Service – Build & Deploy
 
 on:
+  workflow_dispatch:
   push:
+    branches-ignore:
+      - main        # Trigger on all branches except main
     paths:
       - services/alert-service/**
-      - terraform/**
-      - .github/workflows/alert-service.yml
+  pull_request:
+    branches:
+      - main        # Trigger on PRs targeting main
+    paths:
+      - services/alert-service/**
 
 env:
   AWS_REGION: us-east-1
-  ECR_REPOSITORY: g5-health-monitor-alert-service
+  UAT_ECR_REPO: uat-health-monitor-alert-service
+  PROD_ECR_REPO: prod-health-monitor-alert-service
 
 jobs:
-  deploy:
+  uat_deploy:
+    if: github.ref != 'refs/heads/main'
     runs-on: ubuntu-latest
-    permissions:
-      id-token: write
-      contents: read
-
     steps:
-      # 1️⃣ Checkout repository
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      # 2️⃣ Configure AWS credentials (OIDC)
+      - name: Checkout code
+        uses: actions/checkout@v3
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v2
         with:
-          role-to-assume: arn:aws:iam::255945442255:role/github-actions-ecr-ecs
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      # 3️⃣ Login to Amazon ECR
-      - name: Login to Amazon ECR
-        id: login-ecr
+      - name: Login to UAT ECR
         uses: aws-actions/amazon-ecr-login@v2
 
-      # 4️⃣ Build, tag, and push Docker image
-      - name: Build, tag, push image
-        id: build-image
-        working-directory: services/alert-service
+      - name: Build Docker image for UAT
         run: |
-          IMAGE_TAG=${GITHUB_SHA::7}
-          ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG=uat-${{ github.sha }}
+          docker build \
+          -t $UAT_ECR_REPO:$IMAGE_TAG \
+          -t $UAT_ECR_REPO:latest \ .
+      
+      - name: Push Docker image to UAT
+        run: |
+          IMAGE_TAG=uat-${{ github.sha }}
+          docker push $UAT_ECR_REPO:$IMAGE_TAG
+          docker push $UAT_ECR_REPO:latest
 
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
-                       -t $ECR_REGISTRY/$ECR_REPOSITORY:latest .
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+      - name: Output UAT image URI
+        run: echo "UAT_IMAGE=$UAT_ECR_REPO:$IMAGE_TAG" >> $GITHUB_ENV
 
+  prod_deploy:
+    if: github.event_name == 'pull_request' && github.base_ref == 'main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
 
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Prod ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Pull latest UAT image
+        run: |
+          UAT_IMAGE=$(aws ecr describe-images \
+            --repository-name ${{ secrets.UAT_ECR_REPO_NAME }} \
+            --query 'sort_by(imageDetails,& imagePushedAt)[-1].imageTags[0]' \
+            --output text)
+          echo "Latest UAT image: $UAT_IMAGE"
+          docker pull $UAT_ECR_REPO:$UAT_IMAGE
+
+      - name: Tag and push to Prod
+        run: |
+          docker tag $UAT_ECR_REPO:$UAT_IMAGE $PROD_ECR_REPO:latest
+          docker push $PROD_ECR_REPO:latest

@@ -1,3 +1,8 @@
 resource "aws_ecs_cluster" "main" {
-  name = "g5-iot-health-monitor"
+  name = "${terraform.workspace}-iot-health-monitor"
+
+  tags = {
+    Name = "${terraform.workspace}-iot-health-monitor"
+    Env  = terraform.workspace
+  }
 }

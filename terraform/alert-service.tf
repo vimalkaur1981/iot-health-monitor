@@ -1,10 +1,14 @@
-# ---------------------
-# Create Secrets in AWS Secrets Manager
-# ---------------------
+#####################################################
+# Secrets Manager - shared for UAT and PROD
+#####################################################
 resource "aws_secretsmanager_secret" "gmail_user" {
-  name = "gmail_user"
+  name = "gmail_user-${terraform.workspace}"
   lifecycle {
     prevent_destroy = true
+  }
+  tags = {
+    Name = "gmail_user-${terraform.workspace}"
+    Env  = terraform.workspace
   }
 }
 
@@ -14,9 +18,13 @@ resource "aws_secretsmanager_secret_version" "gmail_user_version" {
 }
 
 resource "aws_secretsmanager_secret" "gmail_password" {
-  name = "gmail_password"
+  name = "gmail_password-${terraform.workspace}"  # make it workspace-aware
   lifecycle {
     prevent_destroy = true
+  }
+  tags = {
+    Name = "gmail_password-${terraform.workspace}"
+    Env  = terraform.workspace
   }
 }
 
@@ -25,17 +33,17 @@ resource "aws_secretsmanager_secret_version" "gmail_password_version" {
   secret_string = var.GMAIL_APP_PASSWORD
 }
 
-# ---------------------
+#####################################################
 # ECS Task Definition
-# ---------------------
+#####################################################
 resource "aws_ecs_task_definition" "alert" {
   family                   = "iot-health-monitor-alert"
   requires_compatibilities = ["FARGATE"]
   network_mode             = "awsvpc"
   cpu                      = 256
   memory                   = 512
-  execution_role_arn       = aws_iam_role.g5_ecs_task_execution.arn
-  task_role_arn = aws_iam_role.g5_ecs_task_role.arn
+  execution_role_arn       = aws_iam_role.group5_ecs_task_execution.arn
+  task_role_arn = aws_iam_role.group5_ecs_task_role.arn
 
   container_definitions = jsonencode([
     {
@@ -65,33 +73,48 @@ resource "aws_ecs_task_definition" "alert" {
       logConfiguration = {
         logDriver = "awslogs"
         options = {
-          awslogs-group         = "/ecs/iot-alert"
+          awslogs-group         = "/ecs/${terraform.workspace}-iot-alert"
           awslogs-region        = "us-east-1"
           awslogs-stream-prefix = "ecs"
         }
       }
     }
   ])
+  tags = {
+    Name = "${terraform.workspace}-iot-alert-task"
+    Env  = terraform.workspace
+  }
 }
 
+#####################################################
 # CloudWatch Log Group
+#####################################################
 resource "aws_cloudwatch_log_group" "iot-alert" {
-  name              = "/ecs/iot-alert"
+  name              = "/ecs/${terraform.workspace}-iot-alert"
   retention_in_days = 7
+
+  tags = {
+    Name = "${terraform.workspace}-log-group"
+    Env  = terraform.workspace
+  }
 }
 
-# ---------------------
+#####################################################
 # ECS Service
-# ---------------------
+#####################################################
 resource "aws_ecs_service" "alert" {
-  name            = "alert"
+  name            = "iot-alert"
   cluster         = aws_ecs_cluster.main.id
   task_definition = aws_ecs_task_definition.alert.arn
-  desired_count   = 1
+  desired_count   = terraform.workspace == "prod" ? 3 : 1
   launch_type     = "FARGATE"
 
  network_configuration {
     subnets          = [for s in aws_subnet.public : s.id]
     assign_public_ip = true
   } 
+  tags = {
+    Name = "${terraform.workspace}-alert-service"
+    Env  = terraform.workspace
+  }
 }

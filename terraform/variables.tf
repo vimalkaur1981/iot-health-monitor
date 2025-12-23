@@ -9,3 +9,9 @@ variable "GMAIL_APP_PASSWORD" {
 variable "ALERT_RECIPIENT" { 
     type = string 
 }
+
+variable "environment" {
+  description = "Deployment environment"
+  type        = string
+  default     = "uat"
+}

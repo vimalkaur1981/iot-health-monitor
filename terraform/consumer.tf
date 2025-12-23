@@ -1,10 +1,13 @@
+#####################################################
+# ECS Task Definition
+#####################################################
 resource "aws_ecs_task_definition" "consumer" {
   family                   = "iot-health-monitor-consumer"
   requires_compatibilities = ["FARGATE"]
   network_mode             = "awsvpc"
   cpu                      = 256
   memory                   = 512
-  execution_role_arn       = aws_iam_role.g5_ecs_task_execution.arn
+  execution_role_arn       = aws_iam_role.group5_ecs_task_execution.arn
 
   container_definitions = jsonencode([
     {
@@ -27,16 +30,35 @@ resource "aws_ecs_task_definition" "consumer" {
       logConfiguration = {
         logDriver = "awslogs"
         options = {
-          awslogs-group         = "/ecs/iot-consumer"
+          awslogs-group         = "/ecs/${terraform.workspace}-iot-consumer"
           awslogs-region        = "us-east-1"
           awslogs-stream-prefix = "ecs"
         }
       }
     }
   ])
+  tags = {
+    Name = "${terraform.workspace}-iot-consumer-task"
+    Env  = terraform.workspace
+  }
 }
 
+#####################################################
+# CloudWatch Log Group
+#####################################################
+resource "aws_cloudwatch_log_group" "consumer" {
+  name              = "/ecs/${terraform.workspace}-iot-consumer"
+  retention_in_days = 7
 
+  tags = {
+    Name = "${terraform.workspace}-log-group"
+    Env  = terraform.workspace
+  }
+}
+
+#####################################################
+# ECS Service
+#####################################################
 resource "aws_ecs_service" "consumer" {
   name            = "iot-consumer"
   cluster         = aws_ecs_cluster.main.id
@@ -45,13 +67,14 @@ resource "aws_ecs_service" "consumer" {
   launch_type     = "FARGATE"
 
   network_configuration {
-    subnets          = [for s in aws_subnet.public : s.id]
+    subnets          = [for s in aws_subnet.private : s.id]
     security_groups  = [aws_security_group.ecs.id]  # Attach ECS SG
-    assign_public_ip = true
+    assign_public_ip = false
+  }
+  tags = {
+    Name = "${terraform.workspace}-consumer-ecs-service"
+    Env  = terraform.workspace
   }
 }
 
-resource "aws_cloudwatch_log_group" "consumer" {
-  name              = "/ecs/iot-consumer"
-  retention_in_days = 7
-}
+
