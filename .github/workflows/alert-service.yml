@@ -56,13 +56,16 @@ jobs:
           docker push $ECR_REGISTRY/$UAT_ECR_REPO:$IMAGE_LATEST
           echo "UAT_IMAGE_SHA=$ECR_REGISTRY/$UAT_ECR_REPO:$IMAGE_SHA" >> $GITHUB_ENV
           echo "UAT_IMAGE_LATEST=$ECR_REGISTRY/$UAT_ECR_REPO:$IMAGE_LATEST" >> $GITHUB_ENV
-
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.7.6
       - name: Terraform Init & Apply for UAT
         working-directory: terraform
         run: |
           terraform workspace select $TERRAFORM_WORKSPACE_UAT || terraform workspace new $TERRAFORM_WORKSPACE_UAT
           terraform init
-          terraform apply -auto-approve -var="image_tag=${{ env.UAT_IMAGE_SHA }}"e
+          terraform apply -auto-approve -var="image_tag=${{ env.UAT_IMAGE_SHA }}"
 
   prod_deploy:
     if: github.event_name == 'pull_request' && github.base_ref == 'main'
