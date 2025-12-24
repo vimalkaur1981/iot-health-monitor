@@ -21,10 +21,8 @@ env:
   AWS_REGION: us-east-1
   UAT_ECR_REPO: uat-health-monitor-alert-service
   PROD_ECR_REPO: prod-health-monitor-alert-service
-  UAT_CLUSTER: uat-iot-health-monitor
-  PROD_CLUSTER: prod-iot-health-monitor
-  ECS_SERVICE: iot-alert
-  CONTAINER_NAME: alert
+  TERRAFORM_WORKSPACE_UAT: uat
+  TERRAFORM_WORKSPACE_PROD: prod
 
 jobs:
   uat_deploy:
