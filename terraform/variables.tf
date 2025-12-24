@@ -1,17 +1,12 @@
 # variables.tf
-variable "GMAIL_USER" {
+variable "gmail_user" {
+  description = "Gmail email address used to send alerts"
   type        = string
-  description = "Gmail username"
-  sensitive   = true
+  default     = "kaurvimal81@gmail.com"
 }
 
-variable "GMAIL_APP_PASSWORD" {
-  type        = string
-  description = "Gmail app password"
-  sensitive   = true
-}
-
-variable "ALERT_RECIPIENT" {
+variable "alert_recipient" {
   type        = string
   description = "Alert recipient email"
+  default     = "learnerforlife81@gmail.com"
 }

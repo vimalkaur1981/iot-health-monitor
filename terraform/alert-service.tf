@@ -1,29 +1,6 @@
 # ---------------------
 # Create Secrets in AWS Secrets Manager
 # ---------------------
-resource "aws_secretsmanager_secret" "gmail_user" {
-  name = "gmail_user"
-  lifecycle {
-    prevent_destroy = true
-  }
-}
-
-resource "aws_secretsmanager_secret_version" "gmail_user_version" {
-  secret_id     = aws_secretsmanager_secret.gmail_user.id
-  secret_string = var.GMAIL_USER
-}
-
-resource "aws_secretsmanager_secret" "gmail_password" {
-  name = "gmail_password"
-  lifecycle {
-    prevent_destroy = true
-  }
-}
-
-resource "aws_secretsmanager_secret_version" "gmail_password_version" {
-  secret_id     = aws_secretsmanager_secret.gmail_password.id
-  secret_string = var.GMAIL_APP_PASSWORD
-}
 
 # ---------------------
 # ECS Task Definition
@@ -50,15 +27,18 @@ resource "aws_ecs_task_definition" "alert" {
           value = "${aws_instance.kafka.private_ip}:9092"
         },
         {
+          name  = "GMAIL_USER"
+          value = var.gmail_user
+        },
+        {
           name  = "ALERT_RECIPIENT"
-          value = var.ALERT_RECIPIENT
+          value = var.alert_recipient
         }
       ]
 
       # Sensitive variables stored in Secrets Manager
       secrets = [
-        { name = "GMAIL_USER", valueFrom = aws_secretsmanager_secret_version.gmail_user_version.arn },
-        { name = "GMAIL_APP_PASSWORD", valueFrom = aws_secretsmanager_secret_version.gmail_password_version.arn }
+        { name = "GMAIL_APP_PASSWORD", valueFrom = data.aws_secretsmanager_secret.gmail_password.arn }
       ]
 
       # CloudWatch Logs configuration
