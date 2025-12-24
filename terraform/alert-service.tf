@@ -48,7 +48,7 @@ resource "aws_ecs_task_definition" "alert" {
   container_definitions = jsonencode([
     {
       name      = "alert"
-      image     = "${aws_ecr_repository.alert_service.repository_url}:${terraform.workspace}-latest"
+      image     = "${aws_ecr_repository.alert_service.repository_url}:${var.alert_image_tag}" 
       essential = true
 
       # Non-sensitive environment variable

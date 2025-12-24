@@ -18,3 +18,21 @@ variable "environment" {
   type        = string
   default     = "uat"
 }
+
+variable "alert_image_tag" {
+  type        = string
+  description = "Docker image tag for the alert service. Passed from GitHub workflow."
+  default     = "latest"
+}
+
+variable "consumer_image_tag" {
+  type        = string
+  description = "Docker image tag for the alert service. Passed from GitHub workflow."
+  default     = "latest"
+}
+
+variable "producer_image_tag" {
+  type        = string
+  description = "Docker image tag for the alert service. Passed from GitHub workflow."
+  default     = "latest"
+}

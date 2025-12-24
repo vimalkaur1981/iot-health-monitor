@@ -12,7 +12,7 @@ resource "aws_ecs_task_definition" "consumer" {
   container_definitions = jsonencode([
     {
       name      = "consumer"
-      image     = "${aws_ecr_repository.consumer.repository_url}:latest"  # Use consumer repo
+      image     = "${aws_ecr_repository.consumer.repository_url}:${var.consumer_image_tag}"
       essential = true
 
       portMappings = [

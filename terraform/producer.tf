@@ -12,9 +12,8 @@ resource "aws_ecs_task_definition" "producer" {
   container_definitions = jsonencode([
     {
       name      = "producer"
-      image     = "${aws_ecr_repository.producer.repository_url}:latest"
+      image     = "${aws_ecr_repository.producer.repository_url}:${var.producer_image_tag}"
       essential = true
-
       portMappings = [
         { containerPort = 8000, protocol = "tcp" }
       ]

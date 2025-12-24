@@ -47,13 +47,18 @@ jobs:
         working-directory: services/alert-service
         run: |
           ECR_REGISTRY=${{ steps.login-uat-ecr.outputs.registry }}
-          IMAGE_SHA=uat-${GITHUB_SHA}
-          IMAGE_LATEST=uat-latest
+          IMAGE_SHA=uat-${GITHUB_SHA}      # Immutable image tag
+          IMAGE_LATEST=uat-latest          # Optional convenience tag
+
+           # Build image with both SHA and latest tag
           docker build -t $ECR_REGISTRY/$UAT_ECR_REPO:$IMAGE_SHA -t $ECR_REGISTRY/$UAT_ECR_REPO:$IMAGE_LATEST .
+          
+           # Push both tags
           docker push $ECR_REGISTRY/$UAT_ECR_REPO:$IMAGE_SHA
           docker push $ECR_REGISTRY/$UAT_ECR_REPO:$IMAGE_LATEST
+
+          # Export for Terraform
           echo "UAT_IMAGE_SHA=$ECR_REGISTRY/$UAT_ECR_REPO:$IMAGE_SHA" >> $GITHUB_ENV
-          echo "UAT_IMAGE_LATEST=$ECR_REGISTRY/$UAT_ECR_REPO:$IMAGE_LATEST" >> $GITHUB_ENV
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
         with:
@@ -63,7 +68,7 @@ jobs:
         run: |
           terraform workspace select -or-create "$TERRAFORM_WORKSPACE_UAT"
           terraform init
-          terraform apply -auto-approve -var="image_tag=${{ env.UAT_IMAGE_LATEST }}"
+          terraform apply -auto-approve -var="image_tag=${{ env.UAT_IMAGE_SHA }}"
 
   prod_deploy:
     if: github.event_name == 'pull_request' && github.base_ref == 'main'
@@ -86,15 +91,22 @@ jobs:
       - name: Pull UAT image and push to PROD
         run: |
           ECR_REGISTRY=${{ steps.login-prod-ecr.outputs.registry }}
-          IMAGE_SHA=prod-${GITHUB_SHA}
-          IMAGE_LATEST=prod-latest
-          docker pull $ECR_REGISTRY/$UAT_ECR_REPO:uat-latest
-          docker tag $ECR_REGISTRY/$UAT_ECR_REPO:uat-latest $ECR_REGISTRY/$PROD_ECR_REPO:$IMAGE_SHA
-          docker tag $ECR_REGISTRY/$UAT_ECR_REPO:uat-latest $ECR_REGISTRY/$PROD_ECR_REPO:$IMAGE_LATEST
+          IMAGE_SHA=prod-${GITHUB_SHA}       # Immutable image tag
+          IMAGE_LATEST=prod-latest           # Optional convenience tag
+
+           # Pull UAT SHA image (immutable)
+          docker pull $ECR_REGISTRY/$UAT_ECR_REPO:uat-${GITHUB_SHA}
+          
+          # Tag it for PROD
+          docker tag $ECR_REGISTRY/$UAT_ECR_REPO:uat-${GITHUB_SHA} $ECR_REGISTRY/$PROD_ECR_REPO:$IMAGE_SHA
+          docker tag $ECR_REGISTRY/$UAT_ECR_REPO:uat-${GITHUB_SHA} $ECR_REGISTRY/$PROD_ECR_REPO:$IMAGE_LATEST
+          
+          # Push both tags
           docker push $ECR_REGISTRY/$PROD_ECR_REPO:$IMAGE_SHA
           docker push $ECR_REGISTRY/$PROD_ECR_REPO:$IMAGE_LATEST
+          
+          # Export for Terraform
           echo "PROD_IMAGE_SHA=$ECR_REGISTRY/$PROD_ECR_REPO:$IMAGE_SHA" >> $GITHUB_ENV
-          echo "PROD_IMAGE_LATEST=$ECR_REGISTRY/$PROD_ECR_REPO:$IMAGE_LATEST" >> $GITHUB_ENV
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
         with:
@@ -104,4 +116,4 @@ jobs:
         run: |
           terraform workspace select -or-create "$TERRAFORM_WORKSPACE_PROD"
           terraform init
-          terraform apply -auto-approve -var="image_tag=${{ env.PROD_IMAGE_LATEST  }}"
+          terraform apply -auto-approve -var="image_tag=${{ env.PROD_IMAGE_SHA }}"
