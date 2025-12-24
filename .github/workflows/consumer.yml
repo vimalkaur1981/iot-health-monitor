@@ -89,32 +89,30 @@ jobs:
 
       - name: Pull UAT image and push to PROD
         run: |
-          ECR_REGISTRY=${{ steps.login-prod-ecr.outputs.registry }}
-          IMAGE_SHA=prod-${GITHUB_SHA}       # Immutable image tag
-          IMAGE_LATEST=prod-latest           # Optional convenience tag
+          IMAGE_SHA=prod-${GITHUB_SHA::8}
+          IMAGE_LATEST=prod-latest
 
-           # Pull UAT SHA image (immutable)
-          docker pull $ECR_REGISTRY/$UAT_ECR_REPO:uat-${GITHUB_SHA}
-          
+          # Pull UAT SHA image
+          docker pull ${{ steps.login-prod-ecr.outputs.registry }}/${UAT_ECR_REPO}:uat-${GITHUB_SHA::8}
+
           # Tag it for PROD
-          docker tag $ECR_REGISTRY/$UAT_ECR_REPO:uat-${GITHUB_SHA} $ECR_REGISTRY/$PROD_ECR_REPO:$IMAGE_SHA
-          docker tag $ECR_REGISTRY/$UAT_ECR_REPO:uat-${GITHUB_SHA} $ECR_REGISTRY/$PROD_ECR_REPO:$IMAGE_LATEST
-          
-          # Push both tags
-          docker push $ECR_REGISTRY/$PROD_ECR_REPO:$IMAGE_SHA
-          docker push $ECR_REGISTRY/$PROD_ECR_REPO:$IMAGE_LATEST
-          
-          # Export for Terraform
-          echo "PROD_IMAGE_SHA=$ECR_REGISTRY/$PROD_ECR_REPO:$IMAGE_SHA" >> $GITHUB_ENV
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v2
-        with:
-          terraform_version: 1.7.6
-      - name: Terraform Init & Apply for PROD
-        working-directory: terraform
+          docker tag ${{ steps.login-prod-ecr.outputs.registry }}/${UAT_ECR_REPO}:uat-${GITHUB_SHA::8} \
+                     ${{ steps.login-prod-ecr.outputs.registry }}/${PROD_ECR_REPO}:$IMAGE_SHA
+          docker tag ${{ steps.login-prod-ecr.outputs.registry }}/${UAT_ECR_REPO}:uat-${GITHUB_SHA::8} \
+                     ${{ steps.login-prod-ecr.outputs.registry }}/${PROD_ECR_REPO}:$IMAGE_LATEST
+
+          # Push to PROD
+          docker push ${{ steps.login-prod-ecr.outputs.registry }}/${PROD_ECR_REPO}:$IMAGE_SHA
+          docker push ${{ steps.login-prod-ecr.outputs.registry }}/${PROD_ECR_REPO}:$IMAGE_LATEST
+
+          echo "PROD_IMAGE_SHA=$IMAGE_SHA" >> $GITHUB_ENV
+          echo "PROD_IMAGE_LATEST=$IMAGE_LATEST" >> $GITHUB_ENV
+
+      - name: Force ECS service to deploy latest PROD image
         run: |
-          terraform workspace select -or-create "$TERRAFORM_WORKSPACE_PROD"
-          terraform init
-          terraform apply -auto-approve -var="consumer_image_tag=${{ env.PROD_IMAGE_SHA }}"
+          aws ecs update-service \
+            --cluster ${{ env.PROD_ECS_CLUSTER }} \
+            --service ${{ env.PROD_ECS_SERVICE }} \
+            --force-new-deployment
 
 

@@ -1,33 +1,34 @@
-name: Producer Service – Build & Deploy
+name: Producer Service – Deploy Latest Image
 
 on:
   workflow_dispatch:
   push:
     branches:
-      - feature 
+      - feature
     paths:
       - services/producer-service/**
-      - terraform/**
-      - .github/workflows/producer.yml
   pull_request:
     branches:
-      - main        # Trigger on PRs targeting main
-    paths:    
+      - main
+    paths:
       - services/producer-service/**
-      - terraform/**
-      - .github/workflows/producer.yml
+
 env:
   AWS_REGION: us-east-1
   UAT_ECR_REPO: uat-health-monitor-producer
   PROD_ECR_REPO: prod-health-monitor-producer
+  UAT_ECS_CLUSTER: uat-iot-health-monitor
+  UAT_ECS_SERVICE: iot-producer
+  PROD_ECS_CLUSTER: prod-iot-health-monitor
+  PROD_ECS_SERVICE: iot-producer
 
 jobs:
   uat_deploy:
-    if: github.ref != 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
@@ -35,38 +36,34 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Login to UAT ECR
+      - name: Login to ECR
         id: login-uat-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Build Docker image for UAT
+      - name: Build and push Docker image for UAT
         working-directory: services/producer-service
         run: |
-          ECR_REGISTRY=${{ steps.login-uat-ecr.outputs.registry }}
-          IMAGE_SHA=uat-${GITHUB_SHA}      # Immutable image tag
-          IMAGE_LATEST=uat-latest          # Optional convenience tag
+          IMAGE_SHA=uat-${GITHUB_SHA::8}   # immutable short SHA tag
+          IMAGE_LATEST=uat-latest          # optional convenience tag
 
-           # Build image with both SHA and latest tag
-          docker build -t $ECR_REGISTRY/$UAT_ECR_REPO:$IMAGE_SHA -t $ECR_REGISTRY/$UAT_ECR_REPO:$IMAGE_LATEST .
-          
-           # Push both tags
-          docker push $ECR_REGISTRY/$UAT_ECR_REPO:$IMAGE_SHA
-          docker push $ECR_REGISTRY/$UAT_ECR_REPO:$IMAGE_LATEST
+          docker build -t ${{ steps.login-uat-ecr.outputs.registry }}/${UAT_ECR_REPO}:$IMAGE_SHA \
+                       -t ${{ steps.login-uat-ecr.outputs.registry }}/${UAT_ECR_REPO}:$IMAGE_LATEST .
 
-          # Export for Terraform
-          echo "UAT_IMAGE_SHA=$ECR_REGISTRY/$UAT_ECR_REPO:$IMAGE_SHA" >> $GITHUB_ENV
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v2
-        with:
-          terraform_version: 1.14.3
-      - name: Terraform Init & Apply for UAT
-        working-directory: terraform
+          docker push ${{ steps.login-uat-ecr.outputs.registry }}/${UAT_ECR_REPO}:$IMAGE_SHA
+          docker push ${{ steps.login-uat-ecr.outputs.registry }}/${UAT_ECR_REPO}:$IMAGE_LATEST
+
+          echo "UAT_IMAGE_SHA=$IMAGE_SHA" >> $GITHUB_ENV
+          echo "UAT_IMAGE_LATEST=$IMAGE_LATEST" >> $GITHUB_ENV
+
+      - name: Force ECS service to deploy latest UAT image
         run: |
-          terraform workspace select -or-create "$TERRAFORM_WORKSPACE_UAT"
-          terraform init
-          terraform apply -auto-approve -var="producer_image_tag=${{ env.UAT_IMAGE_SHA }}"
+          aws ecs update-service \
+            --cluster ${{ env.UAT_ECS_CLUSTER }} \
+            --service ${{ env.UAT_ECS_SERVICE }} \
+            --force-new-deployment
 
   prod_deploy:
+    needs: uat_deploy
     if: github.event_name == 'pull_request' && github.base_ref == 'main'
     runs-on: ubuntu-latest
     steps:
@@ -86,30 +83,28 @@ jobs:
 
       - name: Pull UAT image and push to PROD
         run: |
-          ECR_REGISTRY=${{ steps.login-prod-ecr.outputs.registry }}
-          IMAGE_SHA=prod-${GITHUB_SHA}       # Immutable image tag
-          IMAGE_LATEST=prod-latest           # Optional convenience tag
+          IMAGE_SHA=prod-${GITHUB_SHA::8}
+          IMAGE_LATEST=prod-latest
 
-           # Pull UAT SHA image (immutable)
-          docker pull $ECR_REGISTRY/$UAT_ECR_REPO:uat-${GITHUB_SHA}
-          
+          # Pull UAT SHA image
+          docker pull ${{ steps.login-prod-ecr.outputs.registry }}/${UAT_ECR_REPO}:uat-${GITHUB_SHA::8}
+
           # Tag it for PROD
-          docker tag $ECR_REGISTRY/$UAT_ECR_REPO:uat-${GITHUB_SHA} $ECR_REGISTRY/$PROD_ECR_REPO:$IMAGE_SHA
-          docker tag $ECR_REGISTRY/$UAT_ECR_REPO:uat-${GITHUB_SHA} $ECR_REGISTRY/$PROD_ECR_REPO:$IMAGE_LATEST
-          
-          # Push both tags
-          docker push $ECR_REGISTRY/$PROD_ECR_REPO:$IMAGE_SHA
-          docker push $ECR_REGISTRY/$PROD_ECR_REPO:$IMAGE_LATEST
-          
-          # Export for Terraform
-          echo "PROD_IMAGE_SHA=$ECR_REGISTRY/$PROD_ECR_REPO:$IMAGE_SHA" >> $GITHUB_ENV
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v2
-        with:
-          terraform_version: 1.7.6
-      - name: Terraform Init & Apply for PROD
-        working-directory: terraform
+          docker tag ${{ steps.login-prod-ecr.outputs.registry }}/${UAT_ECR_REPO}:uat-${GITHUB_SHA::8} \
+                     ${{ steps.login-prod-ecr.outputs.registry }}/${PROD_ECR_REPO}:$IMAGE_SHA
+          docker tag ${{ steps.login-prod-ecr.outputs.registry }}/${UAT_ECR_REPO}:uat-${GITHUB_SHA::8} \
+                     ${{ steps.login-prod-ecr.outputs.registry }}/${PROD_ECR_REPO}:$IMAGE_LATEST
+
+          # Push to PROD
+          docker push ${{ steps.login-prod-ecr.outputs.registry }}/${PROD_ECR_REPO}:$IMAGE_SHA
+          docker push ${{ steps.login-prod-ecr.outputs.registry }}/${PROD_ECR_REPO}:$IMAGE_LATEST
+
+          echo "PROD_IMAGE_SHA=$IMAGE_SHA" >> $GITHUB_ENV
+          echo "PROD_IMAGE_LATEST=$IMAGE_LATEST" >> $GITHUB_ENV
+
+      - name: Force ECS service to deploy latest PROD image
         run: |
-          terraform workspace select -or-create "$TERRAFORM_WORKSPACE_PROD"
-          terraform init
-          terraform apply -auto-approve -var="producer_image_tag=${{ env.PROD_IMAGE_SHA }}"
+          aws ecs update-service \
+            --cluster ${{ env.PROD_ECS_CLUSTER }} \
+            --service ${{ env.PROD_ECS_SERVICE }} \
+            --force-new-deployment
