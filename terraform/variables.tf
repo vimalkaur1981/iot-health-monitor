@@ -8,6 +8,7 @@ variable "GMAIL_APP_PASSWORD" {
 
 variable "ALERT_RECIPIENT" { 
     type = string 
+    default = "learnerforlife81@example.com"
 }
 
 variable "environment" {
