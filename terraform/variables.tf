@@ -1,9 +1,11 @@
 # variables.tf
 variable "GMAIL_USER" { 
     type = string 
+    default     = null
 }
 variable "GMAIL_APP_PASSWORD" { 
     type = string 
+    default     = null
 }
 
 variable "ALERT_RECIPIENT" { 
