@@ -4,14 +4,14 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - feature 
+      - feature
     paths:
       - services/alert-service/**
       - terraform/**
-      - .github/workflows/alert-service.yml         
+      - .github/workflows/alert-service.yml
   pull_request:
     branches:
-      - main        # Trigger on PRs targeting main
+      - main
     paths:
       - services/alert-service/**
       - terraform/**
@@ -21,7 +21,6 @@ env:
   AWS_REGION: us-east-1
   UAT_ECR_REPO: uat-health-monitor-alert-service
   PROD_ECR_REPO: prod-health-monitor-alert-service
-
   UAT_CLUSTER: uat-iot-health-monitor
   PROD_CLUSTER: prod-iot-health-monitor
   ECS_SERVICE: iot-alert
@@ -34,6 +33,7 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
@@ -45,15 +45,16 @@ jobs:
         id: login-uat-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Build Docker image for UAT
+      - name: Build and push Docker image for UAT
         working-directory: services/alert-service
         run: |
           IMAGE_TAG=uat-${{ github.sha }}
           ECR_REGISTRY=${{ steps.login-uat-ecr.outputs.registry }}
-          docker build \
-          -t $ECR_REGISTRY/$UAT_ECR_REPO:$IMAGE_TAG \
-          .
-      
+          docker build -t $ECR_REGISTRY/$UAT_ECR_REPO:$IMAGE_TAG .
+          docker push $ECR_REGISTRY/$UAT_ECR_REPO:$IMAGE_TAG
+          # Export full image URI for later steps
+          echo "UAT_IMAGE=$ECR_REGISTRY/$UAT_ECR_REPO:$IMAGE_TAG" >> $GITHUB_ENV
+
       - name: Render ECS Task Definition for UAT
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
@@ -83,7 +84,7 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Login to Prod ECR
+      - name: Login to PROD ECR
         id: login-prod-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
@@ -95,12 +96,13 @@ jobs:
             --output text)
           echo "UAT_IMAGE_TAG=$UAT_IMAGE_TAG" >> $GITHUB_ENV
 
-      - name: Pull and push UAT image to PROD
+      - name: Pull UAT image and push to PROD
         run: |
           ECR_REGISTRY=${{ steps.login-prod-ecr.outputs.registry }}
           docker pull $ECR_REGISTRY/$UAT_ECR_REPO:$UAT_IMAGE_TAG
           docker tag $ECR_REGISTRY/$UAT_ECR_REPO:$UAT_IMAGE_TAG $ECR_REGISTRY/$PROD_ECR_REPO:$UAT_IMAGE_TAG
           docker push $ECR_REGISTRY/$PROD_ECR_REPO:$UAT_IMAGE_TAG
+          # Export full PROD image URI
           echo "PROD_IMAGE=$ECR_REGISTRY/$PROD_ECR_REPO:$UAT_IMAGE_TAG" >> $GITHUB_ENV
 
       - name: Render ECS Task Definition for PROD
