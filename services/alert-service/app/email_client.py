@@ -20,7 +20,7 @@ while True:
         consumer = KafkaConsumer(
             ALERT_TOPIC,
             bootstrap_servers=BOOTSTRAP_SERVERS,
-            group_id = f"alert-consumer-{int(time.time())}",
+           group_id = "email-alert-service",
             value_deserializer=lambda m: json.loads(m.decode("utf-8")),
             auto_offset_reset="earliest",
             api_version=(2, 8, 0)  # ⭐ IMPORTANT
