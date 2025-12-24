@@ -21,8 +21,10 @@ env:
   AWS_REGION: us-east-1
   UAT_ECR_REPO: uat-health-monitor-consumer
   PROD_ECR_REPO: prod-health-monitor-consumer
-  TERRAFORM_WORKSPACE_UAT: uat
-  TERRAFORM_WORKSPACE_PROD: prod
+  UAT_ECS_CLUSTER: uat-iot-health-monitor
+  UAT_ECS_SERVICE: iot-consumer
+  PROD_ECS_CLUSTER: prod-iot-health-monitor
+  PROD_ECS_SERVICE: iot-consumer
 
 jobs:
   uat_deploy:
