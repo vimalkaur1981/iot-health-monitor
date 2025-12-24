@@ -55,7 +55,19 @@ jobs:
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
 
           echo "image=$IMAGE_TAG" >> $GITHUB_OUTPUT
+          echo "ECR_IMAGE_URI=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_ENV
+          
+     # 5️⃣ Deploy to ECS
+      - name: Update ECS service
+        run: |
+          IMAGE_TAG=${GITHUB_SHA::7}
+          ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}
 
-      # 5️⃣ (Optional) Output ECR image URI for Terraform or ECS updates
-      - name: Set image URI
-        run: echo "ECR_IMAGE_URI=${{ steps.login-ecr.outputs.registry }}/$ECR_REPOSITORY:${{ steps.build-image.outputs.image }}" >> $GITHUB_ENV
+          # Update ECS service to use the new image
+          aws ecs update-service \
+            --cluster g5-iot-health-monitor \
+            --service producer \
+            --force-new-deployment \
+            --region ${{ env.AWS_REGION }}
+
+          echo "ECS service updated to use image: $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
