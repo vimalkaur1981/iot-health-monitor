@@ -48,7 +48,7 @@ resource "aws_ecs_task_definition" "alert" {
   container_definitions = jsonencode([
     {
       name      = "alert"
-      image     = "${aws_ecr_repository.alert_service.repository_url}:latest"
+      image     = "${aws_ecr_repository.alert_service.repository_url}:${terraform.workspace}-latest"
       essential = true
 
       # Non-sensitive environment variable
@@ -109,6 +109,7 @@ resource "aws_ecs_service" "alert" {
   desired_count   = terraform.workspace == "prod" ? 3 : 1
   launch_type     = "FARGATE"
 
+  force_new_deployment = true
  network_configuration {
     subnets          = [for s in aws_subnet.public : s.id]
     assign_public_ip = true

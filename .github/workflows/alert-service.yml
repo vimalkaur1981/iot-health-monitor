@@ -48,27 +48,21 @@ jobs:
       - name: Build and push Docker image for UAT
         working-directory: services/alert-service
         run: |
-          IMAGE_TAG=uat-${{ github.sha }}
           ECR_REGISTRY=${{ steps.login-uat-ecr.outputs.registry }}
-          docker build -t $ECR_REGISTRY/$UAT_ECR_REPO:$IMAGE_TAG .
-          docker push $ECR_REGISTRY/$UAT_ECR_REPO:$IMAGE_TAG
-          # Export full image URI for later steps
-          echo "UAT_IMAGE=$ECR_REGISTRY/$UAT_ECR_REPO:$IMAGE_TAG" >> $GITHUB_ENV
+          IMAGE_SHA=uat-${GITHUB_SHA}
+          IMAGE_LATEST=uat-latest
+          docker build -t $ECR_REGISTRY/$UAT_ECR_REPO:$IMAGE_SHA -t $ECR_REGISTRY/$UAT_ECR_REPO:$IMAGE_LATEST .
+          docker push $ECR_REGISTRY/$UAT_ECR_REPO:$IMAGE_SHA
+          docker push $ECR_REGISTRY/$UAT_ECR_REPO:$IMAGE_LATEST
+          echo "UAT_IMAGE_SHA=$ECR_REGISTRY/$UAT_ECR_REPO:$IMAGE_SHA" >> $GITHUB_ENV
+          echo "UAT_IMAGE_LATEST=$ECR_REGISTRY/$UAT_ECR_REPO:$IMAGE_LATEST" >> $GITHUB_ENV
 
-      - name: Render ECS Task Definition for UAT
-        uses: aws-actions/amazon-ecs-render-task-definition@v1
-        with:
-          task-definition: ecs-task-def.json
-          container-name: ${{ env.CONTAINER_NAME }}
-          image: ${{ env.UAT_IMAGE }}
-
-      - name: Deploy ECS Service for UAT
-        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
-        with:
-          cluster: ${{ env.UAT_CLUSTER }}
-          service: ${{ env.ECS_SERVICE }}
-          task-definition: ecs-task-def.json
-          force-new-deployment: true
+      - name: Terraform Init & Apply for UAT
+        working-directory: terraform
+        run: |
+          terraform workspace select $TERRAFORM_WORKSPACE_UAT || terraform workspace new $TERRAFORM_WORKSPACE_UAT
+          terraform init
+          terraform apply -auto-approve -var="image_tag=${{ env.UAT_IMAGE_SHA }}"e
 
   prod_deploy:
     if: github.event_name == 'pull_request' && github.base_ref == 'main'
@@ -88,34 +82,22 @@ jobs:
         id: login-prod-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Get latest UAT image tag
-        run: |
-          UAT_IMAGE_TAG=$(aws ecr describe-images \
-            --repository-name $UAT_ECR_REPO \
-            --query 'sort_by(imageDetails,& imagePushedAt)[-1].imageTags[?starts_with(@, `uat-`)]' \
-            --output text)
-          echo "UAT_IMAGE_TAG=$UAT_IMAGE_TAG" >> $GITHUB_ENV
-
       - name: Pull UAT image and push to PROD
         run: |
           ECR_REGISTRY=${{ steps.login-prod-ecr.outputs.registry }}
-          docker pull $ECR_REGISTRY/$UAT_ECR_REPO:$UAT_IMAGE_TAG
-          docker tag $ECR_REGISTRY/$UAT_ECR_REPO:$UAT_IMAGE_TAG $ECR_REGISTRY/$PROD_ECR_REPO:$UAT_IMAGE_TAG
-          docker push $ECR_REGISTRY/$PROD_ECR_REPO:$UAT_IMAGE_TAG
-          # Export full PROD image URI
-          echo "PROD_IMAGE=$ECR_REGISTRY/$PROD_ECR_REPO:$UAT_IMAGE_TAG" >> $GITHUB_ENV
+          IMAGE_SHA=prod-${GITHUB_SHA}
+          IMAGE_LATEST=prod-latest
+          docker pull $ECR_REGISTRY/$UAT_ECR_REPO:uat-latest
+          docker tag $ECR_REGISTRY/$UAT_ECR_REPO:uat-latest $ECR_REGISTRY/$PROD_ECR_REPO:$IMAGE_SHA
+          docker tag $ECR_REGISTRY/$UAT_ECR_REPO:uat-latest $ECR_REGISTRY/$PROD_ECR_REPO:$IMAGE_LATEST
+          docker push $ECR_REGISTRY/$PROD_ECR_REPO:$IMAGE_SHA
+          docker push $ECR_REGISTRY/$PROD_ECR_REPO:$IMAGE_LATEST
+          echo "PROD_IMAGE_SHA=$ECR_REGISTRY/$PROD_ECR_REPO:$IMAGE_SHA" >> $GITHUB_ENV
+          echo "PROD_IMAGE_LATEST=$ECR_REGISTRY/$PROD_ECR_REPO:$IMAGE_LATEST" >> $GITHUB_ENV
 
-      - name: Render ECS Task Definition for PROD
-        uses: aws-actions/amazon-ecs-render-task-definition@v1
-        with:
-          task-definition: ecs-task-def.json
-          container-name: ${{ env.CONTAINER_NAME }}
-          image: ${{ env.PROD_IMAGE }}
-
-      - name: Deploy ECS Service for PROD
-        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
-        with:
-          cluster: ${{ env.PROD_CLUSTER }}
-          service: ${{ env.ECS_SERVICE }}
-          task-definition: ecs-task-def.json
-          force-new-deployment: true
+      - name: Terraform Init & Apply for PROD
+        working-directory: terraform
+        run: |
+          terraform workspace select $TERRAFORM_WORKSPACE_PROD || terraform workspace new $TERRAFORM_WORKSPACE_PROD
+          terraform init
+          terraform apply -auto-approve -var="image_tag=${{ env.PROD_IMAGE_SHA }}"
