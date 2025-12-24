@@ -4,7 +4,8 @@
 resource "aws_secretsmanager_secret" "gmail_user" {
   name = "gmail_user-${terraform.workspace}"
   lifecycle {
-    prevent_destroy = false
+    prevent_destroy = true        # prevents Terraform from deleting this secret
+    ignore_changes  = [tags] 
   }
   tags = {
     Name = "gmail_user-${terraform.workspace}"
@@ -20,7 +21,8 @@ resource "aws_secretsmanager_secret_version" "gmail_user_version" {
 resource "aws_secretsmanager_secret" "gmail_password" {
   name = "gmail_password-${terraform.workspace}"  # make it workspace-aware
   lifecycle {
-    prevent_destroy = false
+    prevent_destroy = true        # prevents Terraform from deleting this secret
+    ignore_changes  = [tags] 
   }
   tags = {
     Name = "gmail_password-${terraform.workspace}"

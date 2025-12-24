@@ -1,5 +1,6 @@
 resource "aws_ecr_repository" "producer" {
   name = "${terraform.workspace}-health-monitor-producer"
+  force_delete = true   # <-- deletes all images if repo exists
 
   tags = {
     Name = "${terraform.workspace}-health-monitor-producer"
@@ -9,7 +10,7 @@ resource "aws_ecr_repository" "producer" {
 
 resource "aws_ecr_repository" "consumer" {
   name = "${terraform.workspace}-health-monitor-consumer"
-
+  force_delete = true   # <-- deletes all images if repo exists
   tags = {
     Name = "${terraform.workspace}-health-monitor-consumer"
     Env  = terraform.workspace
@@ -18,6 +19,7 @@ resource "aws_ecr_repository" "consumer" {
 
 resource "aws_ecr_repository" "alert_service" {
   name = "${terraform.workspace}-health-monitor-alert-service"
+  force_delete = true   # <-- deletes all images if repo exists
   tags = {
     Name = "${terraform.workspace}-health-monitor-alert-service"
     Env  = terraform.workspace
