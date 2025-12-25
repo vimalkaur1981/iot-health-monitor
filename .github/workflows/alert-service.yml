@@ -84,7 +84,7 @@ jobs:
 
       # 6️⃣ Promote image to PROD and deploy (only on merged PR)
       - name: Promote image to PROD and deploy
-        if: github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == true
+        if: github.ref == 'refs/heads/main'
         run: |
           IMAGE_TAG=${GITHUB_SHA::7}
           ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}
