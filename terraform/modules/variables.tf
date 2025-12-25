@@ -10,3 +10,8 @@ variable "alert_recipient" {
   description = "Alert recipient email"
   default     = "learnerforlife81@gmail.com"
 }
+
+variable "environment" {
+  type        = string
+  description = "Environment name (dev/uat/prod)"
+}

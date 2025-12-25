@@ -2,7 +2,7 @@
 # ECS TASK EXECUTION ROLE
 ############################################
 resource "aws_iam_role" "g5_ecs_task_execution" {
-  name = "g5_ecs_task_execution"
+  name = "g5_ecs_task_execution-${var.environment}"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -12,15 +12,20 @@ resource "aws_iam_role" "g5_ecs_task_execution" {
       Action    = "sts:AssumeRole"
     }]
   })
+  tags = {
+    Environment = var.environment
+    Project     = "iot-health-monitor"
+  }
 }
 
 resource "aws_iam_role_policy_attachment" "ecs_execution_policy" {
   role       = aws_iam_role.g5_ecs_task_execution.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+  
 }
 
 resource "aws_iam_role_policy" "g5_ecs_task_execution_secrets" {
-  name = "g5-ecs-task-execution-secrets"
+  name = "g5-ecs-task-execution-secrets-${var.environment}"
   role = aws_iam_role.g5_ecs_task_execution.id
 
   policy = jsonencode({
@@ -33,13 +38,13 @@ resource "aws_iam_role_policy" "g5_ecs_task_execution_secrets" {
 				"arn:aws:secretsmanager:us-east-1:255945442255:secret:gmail_password-*"
 			]
     }]
-  })
+  })  
 }
 ############################################
 # ECS TASK ROLE (APPLICATION ROLE)
 ############################################
 resource "aws_iam_role" "g5_ecs_task_role" {
-  name = "g5-ecs-task-role"
+  name = "g5-ecs-task-role-${var.environment}"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -51,19 +56,24 @@ resource "aws_iam_role" "g5_ecs_task_role" {
       Action = "sts:AssumeRole"
     }]
   })
+  tags = {
+    Environment = var.environment
+    Project     = "iot-health-monitor"
+  }
 }
 
 # Example: allow app to write logs (add app-specific policies as needed)
 resource "aws_iam_role_policy_attachment" "task_logs" {
   role       = aws_iam_role.g5_ecs_task_role.name
   policy_arn = "arn:aws:iam::aws:policy/CloudWatchLogsFullAccess"
+  
 }
 
 ############################################
 # GITHUB ACTIONS ROLE
 ############################################
 resource "aws_iam_role" "github_actions" {
-  name = "github-actions-ecr-ecs"
+  name = "github-actions-ecr-ecs-${var.environment}"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -85,6 +95,10 @@ resource "aws_iam_role" "github_actions" {
       }
     ]
   })
+  tags = {
+    Environment = var.environment
+    Project     = "iot-health-monitor"
+  }
 }
 
 
@@ -94,6 +108,7 @@ resource "aws_iam_role" "github_actions" {
 resource "aws_iam_role_policy_attachment" "github_ecr" {
   role       = aws_iam_role.github_actions.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryPowerUser"
+  
 }
 
 resource "aws_iam_role_policy_attachment" "github_ecs" {
@@ -105,7 +120,7 @@ resource "aws_iam_role_policy_attachment" "github_ecs" {
 # PASSROLE PERMISSION FOR ECS
 ############################################
 resource "aws_iam_role_policy" "github_actions_passrole" {
-  name = "github-actions-passrole"
+  name = "github-actions-passrole-${var.environment}"
   role = aws_iam_role.github_actions.name
 
   policy = jsonencode({
@@ -123,6 +138,6 @@ resource "aws_iam_role_policy" "github_actions_passrole" {
         }
       }
     }]
-  })
+  })  
 }
 

@@ -1,5 +1,5 @@
 resource "aws_ecs_task_definition" "consumer" {
-  family                   = "iot-health-monitor-consumer"
+  family                   = "iot-health-monitor-consumer-${var.environment}"
   requires_compatibilities = ["FARGATE"]
   network_mode             = "awsvpc"
   cpu                      = 256
@@ -8,7 +8,7 @@ resource "aws_ecs_task_definition" "consumer" {
 
   container_definitions = jsonencode([
     {
-      name      = "consumer"
+      name      = "consumer-${var.environment}"
       image     = "${aws_ecr_repository.consumer.repository_url}:latest"  # Use consumer repo
       essential = true
 
@@ -34,11 +34,15 @@ resource "aws_ecs_task_definition" "consumer" {
       }
     }
   ])
+  tags = {
+    Environment = var.environment
+    Project     = "iot-health-monitor"
+  }
 }
 
 
 resource "aws_ecs_service" "consumer" {
-  name            = "iot-consumer"
+  name            = "consumer-${var.environment}"
   cluster         = aws_ecs_cluster.main.id
   task_definition = aws_ecs_task_definition.consumer.arn
   desired_count   = 1
@@ -52,6 +56,11 @@ resource "aws_ecs_service" "consumer" {
 }
 
 resource "aws_cloudwatch_log_group" "consumer" {
-  name              = "/ecs/iot-consumer"
+  name              = "/ecs/iot-consumer-${var.environment}"
   retention_in_days = 7
+
+  tags = {
+    Environment = var.environment
+    Project     = "iot-health-monitor"
+  }
 }

@@ -9,7 +9,7 @@ on:
 
 env:
   AWS_REGION: us-east-1
-  ECR_REPOSITORY: g5-health-monitor-producer
+  ECR_REPOSITORY: iot-health-monitor-producer-uat
 
 jobs:
   deploy:
