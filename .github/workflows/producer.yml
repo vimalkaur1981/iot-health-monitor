@@ -19,6 +19,8 @@ env:
   PROD_ECR_REPOSITORY: iot-health-monitor-producer-prod
   UAT_CLUSTER: iot-health-monitor-uat
   PROD_CLUSTER: iot-health-monitor-prod
+  UAT_SERVICE: producer-uat
+  PROD_SERVICE: producer-prod
 
 jobs:
   deploy:
@@ -74,7 +76,7 @@ jobs:
           echo "Updating ECS service on UAT cluster..."
           aws ecs update-service \
             --cluster ${{ env.UAT_CLUSTER }} \
-            --service producer \
+            --service  ${{ env.UAT_SERVICE }} \
             --force-new-deployment \
             --region ${{ env.AWS_REGION }}
 
@@ -101,7 +103,7 @@ jobs:
           echo "Deploying image to PROD ECS cluster..."
           aws ecs update-service \
             --cluster ${{ env.PROD_CLUSTER }} \
-            --service producer \
+            --service  ${{ env.PROD_SERVICE }} \
             --force-new-deployment \
             --region ${{ env.AWS_REGION }}
 
