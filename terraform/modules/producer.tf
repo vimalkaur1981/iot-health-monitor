@@ -1,6 +1,6 @@
 # ECS Task Definition
 resource "aws_ecs_task_definition" "producer" {
-  family                   = "iot-producer"
+  family                   = "iot-producer-${var.environment}"
   requires_compatibilities = ["FARGATE"]
   network_mode             = "awsvpc"
   cpu                      = 256
@@ -9,7 +9,7 @@ resource "aws_ecs_task_definition" "producer" {
 
   container_definitions = jsonencode([
     {
-      name      = "producer"
+      name      = "producer-${var.environment}"
       image     = "${aws_ecr_repository.producer.repository_url}:latest"
       essential = true
 
@@ -32,18 +32,27 @@ resource "aws_ecs_task_definition" "producer" {
       }
     }
   ])
+  tags = {
+    Environment = var.environment
+    Project     = "iot-health-monitor"
+  }
 }
 
 # CloudWatch Log Group
 resource "aws_cloudwatch_log_group" "producer" {
-  name              = "/ecs/iot-producer"
+  name              = "/ecs/iot-producer-${var.environment}"
   retention_in_days = 7
+
+  tags = {
+    Environment = var.environment
+    Project     = "iot-health-monitor"
+  }
 }
 
 # Security Groups
 
 resource "aws_security_group" "alb" {
-  name   = "producer-alb-sg"
+  name   = "producer-alb-${var.environment}"
   vpc_id = aws_vpc.main.id
 
   ingress { 
@@ -67,10 +76,15 @@ resource "aws_security_group" "alb" {
     protocol = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
+
+  tags = {
+    Environment = var.environment
+    Project     = "iot-health-monitor"
+  }
 }
 
 resource "aws_security_group" "ecs" {
-  name   = "producer-ecs-sg"
+  name   = "producer-ecs--${var.environment}"
   vpc_id = aws_vpc.main.id
 
   ingress {
@@ -85,20 +99,30 @@ resource "aws_security_group" "ecs" {
   protocol    = "-1"
   cidr_blocks = ["0.0.0.0/0"]
   }
+
+  tags = {
+    Environment = var.environment
+    Project     = "iot-health-monitor"
+  }
 }
 
 # Application Load Balancer
 resource "aws_lb" "producer" {
-  name               = "producer-alb"
+  name               = "alb-producer-${var.environment}"
   internal           = false
   load_balancer_type = "application"
   security_groups    = [aws_security_group.alb.id]
 
   subnets = [for s in aws_subnet.public : s.id]
+
+  tags = {
+    Environment = var.environment
+    Project     = "iot-health-monitor"
+  }
 }
 
 resource "aws_lb_target_group" "producer" {
-  name        = "producer-tg"
+  name        = "tg-producer-${var.environment}"
   port        = 8000
   protocol    = "HTTP"
   vpc_id      = aws_vpc.main.id
@@ -111,6 +135,10 @@ resource "aws_lb_target_group" "producer" {
     timeout             = 5
     unhealthy_threshold = 2
   }
+  tags = {
+    Environment = var.environment
+    Project     = "iot-health-monitor"
+  }
 }
 
 resource "aws_lb_listener" "http" {
@@ -122,11 +150,16 @@ resource "aws_lb_listener" "http" {
     type             = "forward"
     target_group_arn = aws_lb_target_group.producer.arn
   }
+
+  tags = {
+    Environment = var.environment
+    Project     = "iot-health-monitor"
+  }
 }
 
 # ECS Service
 resource "aws_ecs_service" "producer" {
-  name            = "producer"
+  name            = "producer-${var.environment}"
   cluster         = aws_ecs_cluster.main.id
   task_definition = aws_ecs_task_definition.producer.arn
   desired_count   = 1
@@ -140,11 +173,16 @@ resource "aws_ecs_service" "producer" {
 
   load_balancer {
     target_group_arn = aws_lb_target_group.producer.arn
-    container_name   = "producer"
+    container_name   = "producer-${var.environment}"
     container_port   = 8000
   }
 
   depends_on = [aws_lb_listener.http]
+
+  tags = {
+    Environment = var.environment
+    Project     = "iot-health-monitor"
+  }
 }
 
 
@@ -155,7 +193,7 @@ data "aws_route53_zone" "main" {
 
 resource "aws_route53_record" "api" {
   zone_id = data.aws_route53_zone.main.zone_id
-  name    = "api.sctp-sandbox.com"
+  name    = "api-${var.environment}.sctp-sandbox.com"
   type    = "A"
 
   alias {
@@ -163,6 +201,7 @@ resource "aws_route53_record" "api" {
     zone_id                = aws_lb.producer.zone_id
     evaluate_target_health = true
   }
+  
 }
 
 

@@ -6,15 +6,25 @@ on:
       - services/producer-service/**
       - terraform/**
       - .github/workflows/producer.yml
+  pull_request:
+    branches:
+      - main
+    paths:
+      - services/producer-service/**
+      - .github/workflows/producer.yml
 
 env:
   AWS_REGION: us-east-1
-  ECR_REPOSITORY: g5-health-monitor-producer
+  UAT_ECR_REPOSITORY: iot-health-monitor-producer-uat
+  PROD_ECR_REPOSITORY: iot-health-monitor-producer-prod
+  UAT_CLUSTER: iot-health-monitor-uat
+  PROD_CLUSTER: iot-health-monitor-prod
+  UAT_SERVICE: producer-uat
+  PROD_SERVICE: producer-prod
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-
     permissions:
       id-token: write
       contents: read
@@ -36,38 +46,65 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      # 4️⃣ Build, tag, and push Docker image
-      - name: Build, tag, push image
+      # 4️⃣ Build & push image to UAT (on push)
+      - name: Build, tag, and push UAT image
+        if: github.event_name == 'push'
         id: build-image
         working-directory: services/producer-service
         run: |
           IMAGE_TAG=${GITHUB_SHA::7}
           ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}
 
-          echo "Building image: $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+          echo "Building image: $ECR_REGISTRY/$UAT_ECR_REPOSITORY:$IMAGE_TAG"
 
-          docker build \
-            -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
-            -t $ECR_REGISTRY/$ECR_REPOSITORY:latest \
-            .
+          docker build -t $ECR_REGISTRY/$UAT_ECR_REPOSITORY:$IMAGE_TAG \
+                       -t $ECR_REGISTRY/$UAT_ECR_REPOSITORY:latest .
 
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
-
-          echo "image=$IMAGE_TAG" >> $GITHUB_OUTPUT
-          echo "ECR_IMAGE_URI=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_ENV
+          docker push $ECR_REGISTRY/$UAT_ECR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$UAT_ECR_REPOSITORY:latest
           
-     # 5️⃣ Deploy to ECS
-      - name: Update ECS service
+          echo "image=$IMAGE_TAG" >> $GITHUB_OUTPUT
+          echo "ECR_IMAGE_URI=$ECR_REGISTRY/$UAT_ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_ENV
+
+      # 5️⃣ Deploy to ECS UAT (on push)
+      - name: Update ECS service on UAT
+        if: github.event_name == 'push'
         run: |
           IMAGE_TAG=${GITHUB_SHA::7}
           ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}
 
-          # Update ECS service to use the new image
+          echo "Updating ECS service on UAT cluster..."
           aws ecs update-service \
-            --cluster g5-iot-health-monitor \
-            --service producer \
+            --cluster ${{ env.UAT_CLUSTER }} \
+            --service  ${{ env.UAT_SERVICE }} \
             --force-new-deployment \
             --region ${{ env.AWS_REGION }}
 
-          echo "ECS service updated to use image: $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+          echo "ECS service updated to use image: $ECR_REGISTRY/$UAT_ECR_REPOSITORY:$IMAGE_TAG"
+
+      # 6️⃣ Promote image to PROD and deploy (only on merged PR)
+      - name: Promote image to PROD and deploy
+        if: github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == true
+        run: |
+          IMAGE_TAG=${GITHUB_SHA::7}
+          ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}
+
+          echo "Promoting image from UAT to PROD..."
+          docker pull $ECR_REGISTRY/$UAT_ECR_REPOSITORY:$IMAGE_TAG
+
+          docker tag $ECR_REGISTRY/$UAT_ECR_REPOSITORY:$IMAGE_TAG \
+                     $ECR_REGISTRY/$PROD_ECR_REPOSITORY:$IMAGE_TAG
+          docker tag $ECR_REGISTRY/$UAT_ECR_REPOSITORY:$IMAGE_TAG \
+                     $ECR_REGISTRY/$PROD_ECR_REPOSITORY:latest
+
+          docker push $ECR_REGISTRY/$PROD_ECR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$PROD_ECR_REPOSITORY:latest
+
+          echo "Deploying image to PROD ECS cluster..."
+          aws ecs update-service \
+            --cluster ${{ env.PROD_CLUSTER }} \
+            --service  ${{ env.PROD_SERVICE }} \
+            --force-new-deployment \
+            --region ${{ env.AWS_REGION }}
+
+          echo "ECS service on PROD updated to use image: $ECR_REGISTRY/$PROD_ECR_REPOSITORY:$IMAGE_TAG"

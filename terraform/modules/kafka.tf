@@ -4,11 +4,12 @@ resource "tls_private_key" "ec2_key" {
 }
 
 resource "aws_key_pair" "ec2_keypair" {
-  key_name   = "iot-kafka-key"
+  key_name   = "iot-kafka-key-${var.environment}"
   public_key = tls_private_key.ec2_key.public_key_openssh
 }
 
 resource "aws_security_group" "g5-kafka" {
+  name = "kafka-broker-${var.environment}"
   vpc_id = aws_vpc.main.id
 
   ingress {
@@ -31,6 +32,10 @@ resource "aws_security_group" "g5-kafka" {
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
+  tags = {
+    Environment = var.environment
+    Project     = "iot-health-monitor"
+  }
 }
 
 resource "aws_instance" "kafka" {
@@ -43,7 +48,9 @@ resource "aws_instance" "kafka" {
   user_data = file("${path.module}/kafka-install.sh")
 
   tags = {
-    Name = "kafka-broker"
+    Environment = var.environment
+    name     = "ec2-kafka-broker"
+    Project     = "iot-health-monitor"
   }
 }
 

@@ -5,7 +5,9 @@ resource "aws_vpc" "main" {
   enable_dns_hostnames = true
 
   tags = {
-    Name = "g5-vpc"
+    Environment = var.environment
+    Project     = "iot-health-monitor"
+    Name        = "iot-health-monitor-${var.environment}"
   }
 }
 
