@@ -48,7 +48,7 @@ jobs:
 
       # 4️⃣ Build & push image to UAT (on push)
       - name: Build, tag, and push UAT image
-        if: github.event_name == 'push'
+        if: github.ref != 'refs/heads/master'
         id: build-image
         working-directory: services/consumer-service
         run: |
@@ -68,7 +68,7 @@ jobs:
 
       # 5️⃣ Deploy to ECS UAT (on push)
       - name: Update ECS service on UAT
-        if: github.event_name == 'push'
+        if: github.ref != 'refs/heads/master'
         run: |
           IMAGE_TAG=${GITHUB_SHA::7}
           ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}

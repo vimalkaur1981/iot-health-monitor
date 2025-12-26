@@ -25,7 +25,7 @@ resource "aws_ecs_task_definition" "producer" {
       logConfiguration = {
         logDriver = "awslogs"
         options = {
-          awslogs-group         = "/ecs/iot-producer"
+          awslogs-group         = "/ecs/iot-producer-${var.environment}"
           awslogs-region        = "us-east-1"
           awslogs-stream-prefix = "ecs"
         }

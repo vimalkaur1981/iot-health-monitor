@@ -27,7 +27,7 @@ resource "aws_ecs_task_definition" "consumer" {
       logConfiguration = {
         logDriver = "awslogs"
         options = {
-          awslogs-group         = "/ecs/iot-consumer"
+          awslogs-group         = "/ecs/iot-consumer-${var.environment}"
           awslogs-region        = "us-east-1"
           awslogs-stream-prefix = "ecs"
         }
@@ -40,6 +40,15 @@ resource "aws_ecs_task_definition" "consumer" {
   }
 }
 
+resource "aws_cloudwatch_log_group" "consumer" {
+  name              = "/ecs/iot-consumer-${var.environment}"
+  retention_in_days = 7
+
+  tags = {
+    Environment = var.environment
+    Project     = "iot-health-monitor"
+  }
+}
 
 resource "aws_ecs_service" "consumer" {
   name            = "consumer-${var.environment}"
@@ -55,12 +64,4 @@ resource "aws_ecs_service" "consumer" {
   }
 }
 
-resource "aws_cloudwatch_log_group" "consumer" {
-  name              = "/ecs/iot-consumer-${var.environment}"
-  retention_in_days = 7
 
-  tags = {
-    Environment = var.environment
-    Project     = "iot-health-monitor"
-  }
-}
