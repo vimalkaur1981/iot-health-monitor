@@ -57,7 +57,10 @@ jobs:
           IMAGE_URI=$ECR_REGISTRY/$UAT_ECR_REPOSITORY:$IMAGE_TAG
 
           echo "Building UAT image..."
-          docker build -t $IMAGE_URI -t $ECR_REGISTRY/$UAT_ECR_REPOSITORY:latest .
+          docker build \
+          --label git_sha=${GITHUB_SHA::7} \
+          -t $IMAGE_URI \
+          -t $ECR_REGISTRY/$UAT_ECR_REPOSITORY:latest .
 
           docker push $IMAGE_URI
           docker push $ECR_REGISTRY/$UAT_ECR_REPOSITORY:latest
@@ -89,7 +92,9 @@ jobs:
           echo "Resolved digest: $DIGEST"
 
           # Optional but useful: show original commit tag
-          COMMIT_TAG=$(docker inspect --format='{{index .RepoTags 0}}' $UAT_IMAGE | awk -F: '{print $2}')
+          COMMIT_TAG=$(docker inspect \
+          --format='{{ index .Config.Labels "git_sha" }}' \
+          $UAT_IMAGE)
           echo "Original tag: $COMMIT_TAG"
 
           echo "Tagging PROD images..."
@@ -102,14 +107,14 @@ jobs:
           docker tag $DIGEST \
             $ECR_REGISTRY/$PROD_ECR_REPOSITORY:$COMMIT_TAG
 
-          docker push $ECR_REGISTRY/$PROD_ECR_REPOSITORY:latest
-          docker push $ECR_REGISTRY/$PROD_ECR_REPOSITORY:$COMMIT_TAG
+          docker push $ECR_REGISTRY/$PROD_ECR_REPOSITORY:$COMMIT_TAG  
+          docker push $ECR_REGISTRY/$PROD_ECR_REPOSITORY:latest          
 
           echo "Deploying to PROD ECS..."
           aws ecs update-service \
             --cluster ${{ env.PROD_CLUSTER }} \
-            --service  ${{ env.PROD_SERVICE }} \
+            --service ${{ env.PROD_SERVICE }} \
             --force-new-deployment \
             --region ${{ env.AWS_REGION }}
 
-          echo "ECS service on PROD updated to use image: $ECR_REGISTRY/$PROD_ECR_REPOSITORY:$IMAGE_TAG"
+          echo "ECS service on PROD updated to use image: $ECR_REGISTRY/$PROD_ECR_REPOSITORY:$COMMIT_TAG"
