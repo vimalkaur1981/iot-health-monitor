@@ -79,11 +79,16 @@ jobs:
         run: |
           ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}
 
-          echo "Promoting image by digest: $IMAGE_DIGEST"
+          UAT_IMAGE=$ECR_REGISTRY/$UAT_ECR_REPOSITORY:latest
 
-          docker pull $IMAGE_DIGEST
+          echo "Resolving digest from UAT latest..."
+          docker pull $UAT_IMAGE
 
-          docker tag $IMAGE_DIGEST \
+          DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' $UAT_IMAGE)
+
+          echo "Promoting image digest: $DIGEST"
+
+          docker tag $DIGEST \
             $ECR_REGISTRY/$PROD_ECR_REPOSITORY:latest
 
           docker push $ECR_REGISTRY/$PROD_ECR_REPOSITORY:latest
