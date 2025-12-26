@@ -45,7 +45,7 @@ resource "aws_ecs_task_definition" "alert" {
       logConfiguration = {
         logDriver = "awslogs"
         options = {
-          awslogs-group         = "/ecs/iot-alert"
+          awslogs-group         = "/ecs/iot-alert-${var.environment}"
           awslogs-region        = "us-east-1"
           awslogs-stream-prefix = "ecs"
         }
