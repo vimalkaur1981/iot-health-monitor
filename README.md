@@ -1,3 +1,6 @@
+![Architecture Diagram](architecture.drawio.png)
+
+
 # IoT Device Heartbeat Monitoring and Email Alerting System
 
 ## 1. Project Overview and Idea
@@ -48,7 +51,7 @@ The system follows a fully event-driven, producer–consumer workflow implemente
 
 IoT devices (or simulated clients using `curl`) send periodic heartbeat (hello) messages containing at least a `device_id` and timestamp. These HTTP requests are routed via **Amazon Route 53** to the **Data Ingestion Service** running on Amazon ECS.
 
-Internally, the ingestion layer uses Kafka producer logic (as implemented in `kafka_producer.py`) to serialize the heartbeat payload as JSON and publish it to the Kafka topic **`iot-data`**. Connection retries and acknowledgment settings (`acks=all`) ensure reliable delivery even during broker startup delays.
+Internally, the ingestion layer uses Kafka producer logic (as implemented in `kafka_producer.py`) to serialize the heartbeat payload as JSON and publish it to the Kafka topic **`iot-data`**. 
 
 ---
 
@@ -92,73 +95,6 @@ Each alert email contains device ID, severity, timestamp, and a descriptive mess
 
 ---
 
-### 4.2 Data Ingestion Service
-
-The **Data Ingestion Service** is a containerized application running on Amazon ECS. Its responsibilities include:
-
-* Validating incoming requests
-* Parsing device heartbeat data
-* Publishing the message to a Kafka topic (e.g., `device-heartbeat`)
-
-By immediately placing incoming data onto Kafka, the service remains lightweight and stateless, allowing it to handle large volumes of concurrent requests efficiently.
-
----
-
-### 4.3 Kafka Broker on EC2
-
-Apache Kafka serves as the central message broker for the system. In this project:
-
-* Kafka is deployed on Amazon EC2 for greater control over configuration and networking.
-* Topics are partitioned to support scalability and parallel processing.
-* Kafka ensures durability and fault tolerance through replication.
-
-Kafka decouples producers (ingestion service) from consumers (monitoring and alert services), ensuring that temporary service failures do not result in data loss.
-
----
-
-### 4.4 Consumer Service (Device Monitoring)
-
-The **Consumer Service**, running on ECS, subscribes to the heartbeat topic. Its main responsibilities are:
-
-* Consuming heartbeat messages from Kafka
-* Maintaining a record of the last-seen timestamp for each device
-* Periodically evaluating device activity
-
-The service uses an internal scheduler or background task to compare the current time with the last heartbeat received for each device. If the difference exceeds a predefined threshold (for example, 5 or 10 minutes), the device is considered *inactive*.
-
----
-
-### 4.5 Alert Generation and Alert Topic
-
-When a device is detected as inactive:
-
-* The Consumer Service generates an alert event
-* The alert message includes device ID, last-seen time, and alert severity
-* The message is published to a dedicated Kafka topic (e.g., `device-alerts`)
-
-Using a separate alert topic ensures a clean separation between normal telemetry data and critical alerting events.
-
----
-
-### 4.6 Alert Service and Email Notification
-
-The **Alert Service** subscribes to the alert topic and is responsible for:
-
-* Consuming alert messages
-* Formatting email notifications
-* Sending emails to the concerned department using SMTP or an email service
-
-The email typically contains:
-
-* Device identifier
-* Timestamp of last heartbeat
-* Alert description
-* Suggested action
-
-This service is also containerized and deployed on ECS, allowing it to scale independently based on alert volume.
-
----
-
 ## 5. Deployment on AWS
 
 ### 5.1 Amazon ECS
@@ -179,53 +115,20 @@ The services are defined using task definitions, and environment variables are u
 * Security groups restrict access between ECS services and the Kafka EC2 instance.
 * Only required ports (e.g., Kafka broker port, application ports) are exposed.
 
-Secrets such as email credentials are managed using AWS Secrets Manager or environment variables.
+Secrets such as email credentials are managed using AWS Secrets Manager.
 
 ---
 
-## 6. Configuration and Time Thresholds
 
-A key feature of the system is the **configurable inactivity threshold**. This value determines how long a device can remain silent before triggering an alert. The threshold can be:
+## 6. Challenges Faced
 
-* Configured per service using environment variables
-* Adjusted without changing application code
-
-This flexibility allows the system to support different device types with varying heartbeat frequencies.
-
----
-
-## 7. Scalability and Fault Tolerance
-
-The architecture is designed with scalability and resilience in mind:
-
-* Kafka handles high-throughput message ingestion.
-* ECS enables horizontal scaling of services.
-* Stateless services reduce recovery time after failures.
-* Message replay from Kafka allows reprocessing in case of downstream failures.
-
----
-
-## 8. Challenges Faced
-
-### 8.1 Kafka Management on EC2
+### 6.1 Kafka Management on EC2
 
 Operating Kafka on EC2 required careful configuration of broker settings, disk space, and network security. While this approach provides flexibility and control, it also introduces operational overhead compared to managed services.
 
 ---
 
-### 8.2 Time-Based Alert Detection
-
-Implementing accurate inactivity detection involved handling:
-
-* Time synchronization between services
-* Delayed or bursty heartbeat messages
-* Avoiding duplicate alerts for the same outage
-
-This was mitigated using stateful device tracking and explicit UP/DOWN state transitions in the consumer service.
-
----
-
-### 8.3 In-Memory State Management
+### 6.2 In-Memory State Management
 
 The consumer service maintains device state in memory for performance and simplicity. While effective for this project, this design means:
 
@@ -236,35 +139,14 @@ This limitation is acceptable for a prototype but should be addressed with persi
 
 ---
 
-### 8.4 Email Reliability and Alert Storms
+### 6.3 Email Reliability and Alert Storms
 
 Using SMTP-based email alerting introduces challenges such as transient failures and the risk of alert storms during large outages. Retry handling is partially addressed in the application, but production systems should include throttling, aggregation, or alternative alert channels.
 
 ---
 
-### 8.2 Time-Based Alert Logic
 
-Accurately detecting inactivity required careful handling of:
-
-* Clock synchronization
-* Delayed or out-of-order messages
-* Avoiding duplicate alerts for the same device
-
-This was addressed by maintaining consistent timestamps and alert suppression logic.
-
----
-
-### 8.3 Email Reliability
-
-Ensuring reliable email delivery involved:
-
-* Handling SMTP failures
-* Retrying failed email sends
-* Preventing alert storms during large outages
-
----
-
-## 9. Future Enhancements
+## 7. Future Enhancements
 
 Potential future improvements include:
 
@@ -275,6 +157,6 @@ Potential future improvements include:
 
 ---
 
-## 10. Conclusion
+## 8. Conclusion
 
 This project demonstrates a robust, cloud-native approach to monitoring IoT device health using AWS, Kafka, and containerized microservices. By leveraging an event-driven architecture, the system achieves scalability, resilience, and flexibility while providing timely alerts to operational teams. The solution can be easily extended and adapted to support larger deployments and additional monitoring requirements, making it suitable for real-world enterprise IoT environments.
