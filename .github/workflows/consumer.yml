@@ -78,20 +78,32 @@ jobs:
         if: github.ref == 'refs/heads/master'
         run: |
           ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}
-
           UAT_IMAGE=$ECR_REGISTRY/$UAT_ECR_REPOSITORY:latest
 
-          echo "Resolving digest from UAT latest..."
+          echo "Pulling UAT latest image..."
           docker pull $UAT_IMAGE
 
+          echo "Resolving digest from UAT latest..."
           DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' $UAT_IMAGE)
 
-          echo "Promoting image digest: $DIGEST"
+          echo "Resolved digest: $DIGEST"
 
+          # Optional but useful: show original commit tag
+          COMMIT_TAG=$(docker inspect --format='{{index .RepoTags 0}}' $UAT_IMAGE | awk -F: '{print $2}')
+          echo "Original tag: $COMMIT_TAG"
+
+          echo "Tagging PROD images..."
+
+          # Tag PROD latest
           docker tag $DIGEST \
             $ECR_REGISTRY/$PROD_ECR_REPOSITORY:latest
 
+          # Tag PROD with commit-style tag
+          docker tag $DIGEST \
+            $ECR_REGISTRY/$PROD_ECR_REPOSITORY:$COMMIT_TAG
+
           docker push $ECR_REGISTRY/$PROD_ECR_REPOSITORY:latest
+          docker push $ECR_REGISTRY/$PROD_ECR_REPOSITORY:$COMMIT_TAG
 
           echo "Deploying to PROD ECS..."
           aws ecs update-service \
