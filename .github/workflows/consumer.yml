@@ -62,7 +62,6 @@ jobs:
           -t $IMAGE_URI \
           -t $ECR_REGISTRY/$UAT_ECR_REPOSITORY:latest .
 
-
           docker push $IMAGE_URI
           docker push $ECR_REGISTRY/$UAT_ECR_REPOSITORY:latest
 
@@ -108,8 +107,8 @@ jobs:
           docker tag $DIGEST \
             $ECR_REGISTRY/$PROD_ECR_REPOSITORY:$COMMIT_TAG
 
-          docker push $ECR_REGISTRY/$PROD_ECR_REPOSITORY:latest
-          docker push $ECR_REGISTRY/$PROD_ECR_REPOSITORY:$COMMIT_TAG
+          docker push $ECR_REGISTRY/$PROD_ECR_REPOSITORY:$COMMIT_TAG  
+          docker push $ECR_REGISTRY/$PROD_ECR_REPOSITORY:latest          
 
           echo "Deploying to PROD ECS..."
           aws ecs update-service \
@@ -118,4 +117,4 @@ jobs:
             --force-new-deployment \
             --region ${{ env.AWS_REGION }}
 
-          echo "ECS service on PROD updated to use image: $ECR_REGISTRY/$PROD_ECR_REPOSITORY:$IMAGE_TAG"
+          echo "ECS service on PROD updated to use image: $ECR_REGISTRY/$PROD_ECR_REPOSITORY:$COMMIT_TAG"
