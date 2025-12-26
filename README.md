@@ -1,5 +1,6 @@
 ![Architecture Diagram](architecture.drawio.svg)
 
+
 # IoT Device Heartbeat Monitoring and Email Alerting System
 
 ## 1. Project Overview and Idea
