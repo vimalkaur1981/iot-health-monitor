@@ -8,7 +8,7 @@ on:
       - .github/workflows/alert-service.yml
   pull_request:
     branches:
-      - main
+      - master
     paths:
       - services/alert-service/**
       - .github/workflows/alert-service.yml
@@ -52,35 +52,26 @@ jobs:
         id: build-image
         working-directory: services/alert-service
         run: |
-          IMAGE_TAG=${GITHUB_SHA::7}
           ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG=${GITHUB_SHA::7}
+          IMAGE_URI=$ECR_REGISTRY/$UAT_ECR_REPOSITORY:$IMAGE_TAG
 
-          echo "Building image: $ECR_REGISTRY/$UAT_ECR_REPOSITORY:$IMAGE_TAG"
+          echo "Building UAT image..."
+          docker build -t $IMAGE_URI -t $ECR_REGISTRY/$UAT_ECR_REPOSITORY:latest .
 
-          docker build -t $ECR_REGISTRY/$UAT_ECR_REPOSITORY:$IMAGE_TAG \
-                       -t $ECR_REGISTRY/$UAT_ECR_REPOSITORY:latest .
-
-          docker push $ECR_REGISTRY/$UAT_ECR_REPOSITORY:$IMAGE_TAG
+          docker push $IMAGE_URI
           docker push $ECR_REGISTRY/$UAT_ECR_REPOSITORY:latest
-          
-          echo "image=$IMAGE_TAG" >> $GITHUB_OUTPUT
-          echo "ECR_IMAGE_URI=$ECR_REGISTRY/$UAT_ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_ENV
 
-      # 5️⃣ Deploy to ECS UAT (on push)
-      - name: Update ECS service on UAT
-        if: github.ref != 'refs/heads/master'
-        run: |
-          IMAGE_TAG=${GITHUB_SHA::7}
-          ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}
+          # Extract immutable digest
+          DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' $IMAGE_URI)
+          echo "IMAGE_DIGEST=$DIGEST" >> $GITHUB_ENV
 
-          echo "Updating ECS service on UAT cluster..."
+          echo "Deploying to UAT ECS..."
           aws ecs update-service \
-            --cluster ${{ env.UAT_CLUSTER }} \
-            --service  ${{ env.UAT_SERVICE }} \
+            --cluster $UAT_CLUSTER \
+            --service $UAT_SERVICE \
             --force-new-deployment \
-            --region ${{ env.AWS_REGION }}
-
-          echo "ECS service updated to use image: $ECR_REGISTRY/$UAT_ECR_REPOSITORY:$IMAGE_TAG"
+            --region $AWS_REGION
 
       # 6️⃣ Promote image to PROD and deploy (only on merged PR)
       - name: Promote image to PROD and deploy
@@ -89,18 +80,16 @@ jobs:
           IMAGE_TAG=${GITHUB_SHA::7}
           ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}
 
-          echo "Promoting image from UAT to PROD..."
-          docker pull $ECR_REGISTRY/$UAT_ECR_REPOSITORY:$IMAGE_TAG
+          echo "Promoting image by digest: $IMAGE_DIGEST"
+          docker pull $IMAGE_DIGEST
 
-          docker tag $ECR_REGISTRY/$UAT_ECR_REPOSITORY:$IMAGE_TAG \
-                     $ECR_REGISTRY/$PROD_ECR_REPOSITORY:$IMAGE_TAG
-          docker tag $ECR_REGISTRY/$UAT_ECR_REPOSITORY:$IMAGE_TAG \
-                     $ECR_REGISTRY/$PROD_ECR_REPOSITORY:latest
+          docker tag $IMAGE_DIGEST \
+            $ECR_REGISTRY/$PROD_ECR_REPOSITORY:latest
 
-          docker push $ECR_REGISTRY/$PROD_ECR_REPOSITORY:$IMAGE_TAG
           docker push $ECR_REGISTRY/$PROD_ECR_REPOSITORY:latest
 
-          echo "Deploying image to PROD ECS cluster..."
+          echo "Deploying to PROD ECS..."
+
           aws ecs update-service \
             --cluster ${{ env.PROD_CLUSTER }} \
             --service  ${{ env.PROD_SERVICE }} \
