@@ -6,12 +6,6 @@ on:
       - services/consumer-service/**
       - terraform/**
       - .github/workflows/consumer.yml
-  pull_request:
-    branches:
-      - master
-    paths:
-      - services/consumer-service/**
-      - .github/workflows/consumer.yml
 
 env:
   AWS_REGION: us-east-1

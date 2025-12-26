@@ -6,13 +6,6 @@ on:
       - services/alert-service/**
       - terraform/**
       - .github/workflows/alert-service.yml
-  pull_request:
-    branches:
-      - master
-    paths:
-      - services/alert-service/**
-      - .github/workflows/alert-service.yml
-
 env:
   AWS_REGION: us-east-1
   UAT_ECR_REPOSITORY: iot-health-monitor-alert-service-uat
