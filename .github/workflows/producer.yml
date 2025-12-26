@@ -6,12 +6,6 @@ on:
       - services/producer-service/**
       - terraform/**
       - .github/workflows/producer.yml
-  pull_request:
-    branches:
-      - master
-    paths:
-      - services/producer-service/**
-      - .github/workflows/producer.yml
 
 env:
   AWS_REGION: us-east-1
